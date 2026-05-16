@@ -11,6 +11,31 @@ CONFIG_FIELDS = {
 }
 
 
+class ConfigError(Exception):
+    def __init__(self, msg: str = "Unknown configuration error."):
+        print(f"CONFIGURATION FILE ERROR: {msg}")
+
+
+def validate_config(config: dict) -> bool:
+    if len(config) < len(CONFIG_FIELDS):
+        raise ConfigError("Not enough fields defined in configuration file.")
+    elif config("WIDTH") < 2:
+        raise ConfigError(f"Invalid 'WIDTH' field {config['WIDTH']}")
+    elif config("HEIGHT") < 2:
+        raise ConfigError(f"Invalid 'HEIGHT' field {config['HEIGHT']}")
+    elif (config("ENTRY")[0] < 2 or config("ENTRY")[0] > config("WIDTH") or
+            config("ENTRY")[1] < 2 or config("ENTRY")[1] > config("HEIGHT")):
+        raise ConfigError(f"Invalid 'ENTRY' field {config['ENTRY']}")
+    elif (config("EXIT")[0] < 2 or config("EXIT")[0] > config("WIDTH") or
+            config("EXIT")[1] < 2 or config("EXIT")[1] > config("HEIGHT")):
+        raise ConfigError(f"Invalid 'EXIT' field {config['EXIT']}")
+    elif config("ENTRY") == config("EXIT"):
+        raise ConfigError(f"'ENTRY' and 'EXIT' fields can not be equal "
+                          f"'{config['EXIT']}'")
+    else:
+        return True
+
+
 def format_config(lst: list[str]) -> list:
     if lst[0] in CONFIG_FIELDS.keys() and lst[0][0] != '#':
         if (CONFIG_FIELDS[lst[0]] is int
@@ -23,9 +48,9 @@ def format_config(lst: list[str]) -> list:
                 lst[1][nbr] = int(lst[1][nbr])
             lst[1] = CONFIG_FIELDS[lst[0]](lst[1])
         else:
-            print("Type not supported")
+            raise ConfigError(f"Not supported field type '{lst[1]}'.")
     elif lst[0][0] != '#':
-        print("Innvalid line")
+        raise ConfigError(f"Invalid line format '{lst[0]}={lst[1]}'.")
     return lst
 
 
@@ -35,6 +60,8 @@ def get_config() -> dict:
         file_c = file.read().split('\n')
         for line in file_c:
             value = line.strip('\n').split('=')
+            if len(value) != 2:
+                raise ConfigError(f"Invalid line format '{line}'.")
             value = format_config(value)
             content[value[0]] = value[1]
     return content
