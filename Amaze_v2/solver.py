@@ -1,6 +1,7 @@
 import sys
 from constants import NORTH, EAST, SOUTH, WEST, MOVE
 
+
 class MazeSolver:
     def __init__(self, maze_file: str):
         self.maze_file = maze_file
@@ -92,6 +93,79 @@ class MazeSolver:
 
         print("❌ No se encontró ningún camino para resolver el laberinto.")
         return []
+
+    def rewrite_output_file_coord(self, best_path: list) -> None:
+        """
+        Añade las coordenadas del camino de resolución (best_path)
+        al final del archivo de texto del laberinto.
+        """
+        if not best_path:
+            print("No path to print")
+            return
+        try:
+            with open(self.maze_file, "a") as f:
+                f.write("\n")
+                for x, y in best_path:
+                    f.write(f"({x}, {y})")
+        except IOError as e:
+            print(f"❌ Error writing output file: {e}")
+
+    def write_hex_path(self, best_path: list) -> None:
+        """
+        Añade los valores hexadecimales del camino óptimo en una sola línea
+        al final del archivo del laberinto.
+        """
+        if not best_path:
+            print("No path to print")
+            return
+        try:
+            hex_chars = []
+            for pos in best_path:
+                wall_value = self.grid[pos]
+                hex_c = f"{wall_value:X}"
+                hex_chars.append(hex_c)
+            solution = "".join(hex_chars)
+            with open(self.maze_file, "a") as f:
+                f.write("\n")
+                f.write(solution)
+        except IOError as e:
+            print(f"❌ Error al escribir la solución en el archivo: {e}")
+        except Exception as e:
+            print(f"General error in write_hex_path: {e}")
+
+    def append_solution_path(self, best_path: list) -> None:
+        """
+        Añade al final del archivo la secuencia de pasos
+        (N, E, S, W) que forman el camino más corto.
+        """
+        if not best_path:
+            print("No path to print")
+            return
+        try:
+            with open(self.maze_file, "a") as f:
+                solution_path = ""
+
+                for i in range(len(best_path) - 1):
+                    x, y = best_path[i]
+                    x_next, y_next = best_path[i + 1]
+
+                    dx = x_next - x
+                    dy = y_next - y
+
+                    if dx == 1:
+                        solution_path += "E"
+                    elif dx == -1:
+                        solution_path += "W"
+                    elif dy == 1:
+                        solution_path += "S"
+                    elif dy == -1:
+                        solution_path += "N"
+                f.write("\n")
+                f.write(solution_path)
+        except IOError as e:
+            print(f"❌ Error al escribir la solución en el archivo: {e}")
+        except Exception as e:
+            print(f"General error in write_hex_path: {e}")
 
 
 if __name__ == "__main__":

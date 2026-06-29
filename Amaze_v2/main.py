@@ -1,4 +1,5 @@
 from maze import Maze
+from solver import MazeSolver
 import sys
 
 
@@ -24,6 +25,13 @@ def main() -> None:
     maze.generate()
     maze.show_maze()
     maze.write_output_file()
+
+    solver = MazeSolver(output_file)
+    best_path = solver.solve()
+    solver.append_solution_path(best_path)
+    # solver.write_hex_path(best_path)
+    # solver.rewrite_output_file_coord(best_path)
+
     # Command test: python3 main.py 7 8 maze.txt
 
 
