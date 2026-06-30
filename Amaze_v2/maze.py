@@ -1,11 +1,20 @@
 from cell import Cell
 from constants import NORTH, EAST, SOUTH, WEST, OPPOSITE, MOVE
+import random
 
 
 class Maze:
     def __init__(self, width: int, height: int,
                  start: tuple[int, int], exit: tuple[int, int],
-                 output_file: str) -> None:
+                 output_file: str, seed: int = None) -> None:
+        # 2. Si nos pasan una semilla, la plantamos en el motor de Python
+        if seed is not None:
+            random.seed(seed)
+            print(f"🌱 Seed successfully planted: {seed}"
+                  "(The maze will be reproducible)")
+        else:
+            print(r"🎲 No fixed seed. Generating a 100% random maze.")
+
         self.width = width
         self.height = height
         self.start = start
@@ -16,23 +25,15 @@ class Maze:
             for x in range(width):
                 self.grid[(x, y)] = Cell()
         self._ft_pattern()
+        if self.grid[self.start].fixed:
+            raise ValueError("The ENTRY position in '42' pattern!")
 
-    def main_loop(self) -> None:
-        while (True):
-            choice = input("Select your choice")
-            if (choice == "1"):
-                ...
-            elif (choice == "2"):
-                ...
-            elif (choice == "6"):
-                break
-            else:
-                print("eres tonto")
-                # TO DO: Add proper errors
+        if self.grid[self.exit].fixed:
+            raise ValueError("The EXIT position in pattern '42'!")
 
     def connect_cells(self, x: int, y: int, direction: int) -> None:
         """
-        Breaks the wall of the current cell (x, y) and the opposite wall 
+        Breaks the wall of the current cell (x, y) and the opposite wall
         of its neighbor in the given direction.
         """
         # Get the current cell
@@ -63,13 +64,54 @@ class Maze:
             return False
         return True
 
+    def _ft_pattern(self) -> None:
+        """
+        Calculate the center of the maze and stamp the logo '42'
+        by marking the corresponding cells as fixed (solid walls).
+        """
+        # 1. We define the mini stamp as 7 columns wide x 5 high
+        # 1 = Wall of number '42' (blocked cell)
+        # 0 = Free space for aisle
+        stamp = [
+            [1, 0, 1, 0, 1, 1, 1],  # 4   2
+            [1, 0, 1, 0, 0, 0, 1],
+            [1, 1, 1, 0, 1, 1, 1],
+            [0, 0, 1, 0, 1, 0, 0],
+            [0, 0, 1, 0, 1, 1, 1]
+        ]
+        stamp_w = 7
+        stamp_h = 5
+
+        # 2. If the maze is too small
+        # we don't put the seal on to avoid crashes
+        if self.width < stamp_w or self.height < stamp_h:
+            print("Maze too small to stamp the '42' pattern")
+            return
+
+        # 3. We calculate the mathematical coordinate of the center
+        offset_x = (self.width - stamp_w) // 2
+        offset_y = (self.height - stamp_h) // 2
+
+        # 4. We stamped the seal on our grid of cells
+        for sy in range(stamp_h):
+            for sx in range(stamp_w):
+                if stamp[sy][sx] == 1:
+                    # We translate the local position of the stamp to the
+                    # global coordinate of the labyrinth
+                    target_x = offset_x + sx
+                    target_y = offset_y + sy
+
+                    # We mark the cell as fixed so that
+                    # DFS completely avoids it
+                    self.grid[(target_x, target_y)].fixed = True
+
     def generate(self) -> None:
         """
         Generates a perfect maze using DFS with Backtracking.
         """
-        import random
-        print(f"Empezando DFS en la celda: {self.start}")
-        print(f"¿Es válida la celda de inicio?: {self.is_valid_cell(self.start[0], self.start[1])}")
+        print(f"Starting DFS in the cell: {self.start}")
+        print("Is the starting cell valid?:"
+              f"{self.is_valid_cell(self.start[0], self.start[1])}")
         # Initial config
         visited = set()
         stack = [self.start]
@@ -77,7 +119,8 @@ class Maze:
 
         # The main loop: as long as the backpack (stack) is not empty
         while stack:
-            # We look at the cell where we are currently standing (the last one in the stack)
+            # We look at the cell where we are currently standing
+            # (the last one in the stack)
             x, y = stack[-1]
 
             # List to save which neighboring addresses are valid to go to
@@ -87,19 +130,20 @@ class Maze:
             for direction in [NORTH, EAST, SOUTH, WEST]:
                 dx, dy = MOVE[direction]
                 nx, ny = x + dx, y + dy
-                # Is the neighboring cell within the map and has NOT been visited?
+                # Is the neighbor cell within the map and has NOT been visited?
                 if self.is_valid_cell(nx, ny) and (nx, ny) not in visited:
                     unvisited_neighbors.append((direction, nx, ny))
 
             # Decision making
             if unvisited_neighbors:
-                # There are options! We choose a random direction from the available ones
+                # We choose a random direction from the available ones
                 direction, nx, ny = random.choice(unvisited_neighbors)
 
                 # We break the walls between the current cell and its neighbor
                 self.connect_cells(x, y, direction)
 
-                # We physically move to the new cell: we add it to the stack and the visited cell
+                # We move to the new cell:
+                # we add it to the stack and the visited cell
                 stack.append((nx, ny))
                 visited.add((nx, ny))
             else:
@@ -107,18 +151,53 @@ class Maze:
                 # We remove the current cell from the stack to backtrack.
                 stack.pop()
 
-    def solve(self) -> None:
-        """
-        Solves the maze
-        """
-        ...
-
-    def _ft_pattern(self) -> None:
+    def _ft_pattern2(self) -> None:
         """
         Mark 42 cells as fixed, so they cannot be changed.
         If width < 9 or height < 7 (whatever) no 42 pattern will be created
         """
+        if self.width >= 9 and self.height <= 7:
+            self.grid
         ...
+
+    def make_imperfect(self, probability: float = 0.07) -> None:
+        """
+        Navigate the maze and break down internal walls randomly
+        to create loops (multiple paths), making it IMPERFECT.
+        """
+
+        # We scan all cells except the outer edges so as not to break the map
+        for y in range(self.height):
+            for x in range(self.width):
+                current_cell = self.grid[(x, y)]
+
+                # We skip cells in pattern 42, they remain completely closed.
+                if current_cell.fixed:
+                    continue
+
+                # --- Attempt to break out to the EAST ---
+                if x < self.width - 1:  # It's not the right outer edge
+                    neighbor_east = self.grid[(x + 1, y)]
+                    # If there's a wall between them, they're not from '42,
+                    # and luck decides it...
+                    if (current_cell.walls & EAST) and not neighbor_east.fixed:
+                        if random.random() < probability:
+                            # We break consistently on both sides
+                            current_cell.walls &= ~EAST
+
+                            neighbor_east.walls &= ~WEST
+
+                # --- Attempt to break through to the SOUTH ---
+                if y < self.height - 1:  # It is not the lower outer edge
+                    neighb_south = self.grid[(x, y + 1)]
+                    # If there's a wall between them, they're not from '42,
+                    # and luck decides it...
+                    if (current_cell.walls & SOUTH) and not neighb_south.fixed:
+                        if random.random() < probability:
+                            # We break consistently on both sides
+                            current_cell.walls &= ~SOUTH
+
+                            neighb_south.walls &= ~NORTH
 
     def show_maze(self) -> None:
         """
@@ -147,7 +226,10 @@ class Maze:
                     mid_line += " "
 
                 # Start (S) and exit (E) indicators within the cells
-                if (x, y) == self.start:
+                # If cell.fixed ("███")
+                if cell.fixed:
+                    mid_line += "███"
+                elif (x, y) == self.start:
                     mid_line += " S "
                 elif (x, y) == self.exit:
                     mid_line += " E "
@@ -186,7 +268,7 @@ class Maze:
             row_str = ""
             for x in range(self.width):
                 cell = self.grid[(x, y)]
-                # Usamos :X para pasarlo a hexadecimal en mayúsculas
+                # We use :X to convert it to uppercase hexadecimal
                 row_str += f"{cell.walls:X}"
             print(row_str)
 
@@ -199,12 +281,12 @@ class Maze:
         The format includes the hexadecimal array, input, and output.
         """
         try:
-            # Opens the file in write mode ("w"). The 'with' block ensures that it closes automatically upon completion.
+            # Opens the file in write mode ("w"). The 'with'
+            # block ensures that it closes automatically upon completion.
             with open(self.output_file, "w") as f:
                 for y in range(self.height):
                     for x in range(self.width):
-                        # El formato :X lo pasa a Hexadecimal en mayúsculas sin "0x"
-                        # f.write(hex(self.grid[(x, y)].walls).strip("0x").upper())
+                        # Converts the format :X to uppercase hex without "0x"
                         f.write(f"{self.grid[(x, y)].walls:X}")
                     f.write("\n")
 
@@ -212,7 +294,6 @@ class Maze:
                 f.write(f"{self.start[0]}, {self.start[1]}")
                 f.write("\n")
                 f.write(f"{self.exit[0]}, {self.exit[1]}")
-                # TO DO: Add solve path
 
         except IOError as e:
             print(f"❌ Error writing output file: {e}")
