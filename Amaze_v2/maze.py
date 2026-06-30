@@ -7,7 +7,6 @@ class Maze:
     def __init__(self, width: int, height: int,
                  start: tuple[int, int], exit: tuple[int, int],
                  output_file: str, seed: int = None) -> None:
-        # 2. Si nos pasan una semilla, la plantamos en el motor de Python
         if seed is not None:
             random.seed(seed)
             print(f"🌱 Seed successfully planted: {seed}"
