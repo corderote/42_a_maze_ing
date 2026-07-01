@@ -49,12 +49,14 @@ def mouse_click(button, x, y, data):
     for b in data[4]:
         if b.inside_button((x, y)):
             b.click()
+            if b is data[4][3]:
+                return
             mlx_update(data)
 
 
 if __name__ == "__main__":
     # Maze
-    maze = Maze.load_from_file("example_maze.txt")
+    maze = Maze.generate_maze_output()
     
     # Mlx
     m = Mlx()
@@ -75,12 +77,12 @@ if __name__ == "__main__":
         img_lst.append(m.mlx_png_file_to_image(p, f"Images/end_{nbr}.png"))
         img_lst.append(m.mlx_png_file_to_image(p, f"Images/solution_{nbr}.png"))
         img_dict[nbr] = img_lst
-    print(img_dict)
 
     mlx_maze = MLX_Maze(m, p, w, maze, img_dict[1])
     
     nb_img = m.mlx_png_file_to_image(p, "Images/new_button.png")
     nb = MLX_Button(m, p, w, nb_img, (0, w_height - 80))
+    nb.set_function(mlx_maze.gen_new_maze)
 
     pb_img = m.mlx_png_file_to_image(p, "Images/path_button.png")
     pb = MLX_Button(m, p, w, pb_img, (160, w_height - 80))

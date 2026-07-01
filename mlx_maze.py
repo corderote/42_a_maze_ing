@@ -9,7 +9,10 @@ class MLX_Maze():
         self._p: Any = ptr
         self._w: Any = window
         self._maze: Maze = maze
-        self._img_dict = img_lst
+        self._img_lst = img_lst
+        
+    def gen_new_maze(self):
+        self._maze = Maze.generate_maze_output()
         
     def set_img_list(self, new_list:list[Any]):
         self._img_lst = new_list
@@ -32,7 +35,7 @@ class MLX_Maze():
                 for col in range(self._maze.get_width()):
                     self._m.mlx_put_image_to_window(self._p, self._w, wall[0], np[0], np[1])
                     np[0] += wall[1]
-                    cell = self._maze._grid[(col, row)]
+                    cell = self._maze.get_maze_cells()[(col, row)]
                     if cell.get_north() == 0:
                         self._m.mlx_put_image_to_window(self._p, self._w, path[0], np[0], np[1])
                     else:
@@ -44,7 +47,7 @@ class MLX_Maze():
             # Mid
             for col in range(self._maze.get_width()):
                 # Right
-                cell = self._maze._grid[(col, row)]
+                cell = self._maze.get_maze_cells()[(col, row)]
                 if cell.get_west() == 0:
                     self._m.mlx_put_image_to_window(self._p, self._w, path[0], np[0], np[1])
                 else:
@@ -64,7 +67,7 @@ class MLX_Maze():
             for col in range(self._maze.get_width()):
                 self._m.mlx_put_image_to_window(self._p, self._w, wall[0], np[0], np[1])
                 np[0] += wall[1]
-                cell = self._maze._grid[(col, row)]
+                cell = self._maze.get_maze_cells()[(col, row)]
                 if cell.get_south() == 0:
                     self._m.mlx_put_image_to_window(self._p, self._w, path[0], np[0], np[1])
                 else:
@@ -73,7 +76,7 @@ class MLX_Maze():
             self._m.mlx_put_image_to_window(self._p, self._w, wall[0], np[0], np[1])
             np[0] = pos[0]
             np[1] += wall[2]
-        for p, cell in self._maze._grid.items():
+        for p, cell in self._maze.get_maze_cells().items():
             if cell.fixed is True:
                 self._print_fixed(pos, p)
 
@@ -82,11 +85,11 @@ class MLX_Maze():
         e_img = self._img_lst[4]
         p_img = self._img_lst[5]
         #START
-        x = (2*self._maze._start[0] + 1)*s_img[1] + pos[0]
-        y = (2*self._maze._start[1] + 1)*s_img[1] + pos[1]
+        x = (2*self._maze.start[0] + 1)*s_img[1] + pos[0]
+        y = (2*self._maze.start[1] + 1)*s_img[1] + pos[1]
         self._m.mlx_put_image_to_window(self._p, self._w, s_img[0], x, y)
         # PATH
-        for cell in self._maze._path:
+        for cell in self._maze.path:
             x_p = (2*cell[0] + 1)*p_img[1] + pos[0]
             y_p = (2*cell[1] + 1)*p_img[1] + pos[1]
             self._m.mlx_put_image_to_window(self._p, self._w, p_img[0], x_p, y_p)
@@ -96,14 +99,14 @@ class MLX_Maze():
             x = x_p
             y = y_p
         #END
-        x = (2*self._maze._end[0] + 1)*e_img[1] + pos[0]
-        y = (2*self._maze._end[1] + 1)*e_img[1] + pos[1]
+        x = (2*self._maze.exit[0] + 1)*e_img[1] + pos[0]
+        y = (2*self._maze.exit[1] + 1)*e_img[1] + pos[1]
         self._m.mlx_put_image_to_window(self._p, self._w, e_img[0], x, y)
 
 
 if __name__ == "__main__":
     # Maze
-    maze = Maze.load_from_file("example_maze.txt")
+    maze = Maze.generate_maze_output()
     
     # Mlx
     m = Mlx()

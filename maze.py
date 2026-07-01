@@ -1,137 +1,339 @@
 from __future__ import annotations
+from cell import Cell
+from constants import NORTH, EAST, SOUTH, WEST, OPPOSITE, MOVE, STAMP
+import random
+import sys
+from config import get_config, ConfigError
 
 
-class MazeError(Exception):
-    def __init__(self, msg: str = "Unknown configuration error."):
-        print(f"MAZE ERROR: {msg}")
+class Maze:
+    def __init__(self, width: int, height: int,
+                 start: tuple[int, int], exit: tuple[int, int],
+                 output_file: str, seed: int | None = None) -> None:
+        if seed is not None:
+            self.seed = seed
+            print(f"🌱 Seed successfully planted: {seed}"
+                  "(The maze will be reproducible)")
+        else:
+            self.seed = random.randint(1, 1000000)
+            print(f"Seed: {self.seed}")
+        random.seed(self.seed)
+        self.width = width
+        self.height = height
+        self.start = start
+        self.exit = exit
+        self.output_file = output_file
+        self.grid: dict[tuple[int, int], Cell] = {}
+        for y in range(height):
+            for x in range(width):
+                self.grid[(x, y)] = Cell()
+        self.path: list[tuple[int, int]] = []
+        self._ft_pattern()
+        if self.grid[self.start].fixed:
+            raise ValueError("The ENTRY position in '42' pattern!")
+        if self.grid[self.exit].fixed:
+            raise ValueError("The EXIT position in pattern '42'!")
+        self.generate()
 
+    def connect_cells(self, x: int, y: int, direction: int) -> None:
+        """
+        Breaks the wall of the current cell (x, y) and the opposite wall
+        of its neighbor in the given direction.
+        """
+        # Get the current cell
+        current_cell = self.grid[(x, y)]
 
-class Cell():
-    def __init__(self, value: int = 0b1111) -> None:
-        self.walls = value
-        self.fixed = False
-        if value == 15:
-            self.fixed = True   
+        # Calculate the neighbor's coordinates using the MOVE dictionary
+        dx, dy = MOVE[direction]
+        neighbor_x = x + dx
+        neighbor_y = y + dy
 
-    def get_north(self) -> int:
-        return (self.walls & 0b0001)
+        # Get the neighbor's cell
+        neighbor_cell = self.grid[(neighbor_x, neighbor_y)]
 
-    def get_east(self) -> int:
-        return ((self.walls & 0b0010) >> 1)
+        # Break our wall (applying the mask)
+        current_cell.walls &= ~direction
 
-    def get_south(self) -> int:
-        return ((self.walls & 0b0100) >> 2)
+        neighbor_cell.walls &= ~OPPOSITE[direction]
 
-    def get_west(self) -> int:
-        return ((self.walls & 0b1000) >> 3)
+    def is_valid_cell(self, x: int, y: int) -> bool:
+        """
+        Checks if the coordinates (x, y) are inside the maze boundaries.
+        Returns True if they are valid, False otherwise.
+        """
+        if not (0 <= x < self.width and 0 <= y < self.height):
+            return False
+        current_cell = self.grid[(x, y)]
+        if current_cell.fixed:
+            return False
+        return True
 
+    def _ft_pattern(self) -> None:
+        """
+        Calculate the center of the maze and stamp the logo '42'
+        by marking the corresponding cells as fixed (solid walls).
+        """
+        # 1. We define the mini stamp as 7 columns wide x 5 high
+        # 1 = Wall of number '42' (blocked cell)
+        # 0 = Free space for aisle
+        stamp = STAMP
+        stamp_w = 7
+        stamp_h = 5
 
-class Maze():
-    # Variables
-    _width: int = 0
-    _height: int = 0
-    _grid: dict[tuple[int, int], Cell]
-
-    _start: tuple[int, int] = ()
-    _end: tuple[int, int] = ()
-    _path: list[tuple[int, int]] = []
-
-    # Constructor.
-    def __init__(self, w: int, h: int, cells: dict[tuple[int, int], Cell]) -> None:
-        #TODO: Add validation here either using setters or a validate
-        if w * h != len(cells):
+        # 2. If the maze is too small
+        # we don't put the seal on to avoid crashes
+        if self.width < stamp_w + 2 or self.height < stamp_h + 2:
+            print("Maze too small to stamp the '42' pattern"
+                  "\nMin size 9x7")
             return
-        self._width = w
-        self._height = h
-        self._grid = cells
+
+        # 3. We calculate the mathematical coordinate of the center
+        offset_x = (self.width - stamp_w) // 2
+        offset_y = (self.height - stamp_h) // 2
+
+        # 4. We stamped the seal on our grid of cells
+        for sy in range(stamp_h):
+            for sx in range(stamp_w):
+                if stamp[sy][sx] == 1:
+                    # We translate the local position of the stamp to the
+                    # global coordinate of the labyrinth
+                    target_x = offset_x + sx
+                    target_y = offset_y + sy
+
+                    # We mark the cell as fixed so that
+                    # DFS completely avoids it
+                    self.grid[(target_x, target_y)].fixed = True
+
+    def generate(self) -> None:
+        """
+        Generates a perfect maze using DFS with Backtracking.
+        """
+        visited = set()
+        stack = [self.start]
+        visited.add(self.start)
+
+        # The main loop: as long as the backpack (stack) is not empty
+        while stack:
+            # We look at the cell where we are currently standing
+            # (the last one in the stack)
+            x, y = stack[-1]
+
+            # List to save which neighboring addresses are valid to go to
+            unvisited_neighbors = []
+
+            # We explored the four directions around us
+            for direction in [NORTH, EAST, SOUTH, WEST]:
+                dx, dy = MOVE[direction]
+                nx, ny = x + dx, y + dy
+                # Is the neighbor cell within the map and has NOT been visited?
+                if self.is_valid_cell(nx, ny) and (nx, ny) not in visited:
+                    unvisited_neighbors.append((direction, nx, ny))
+
+            # Decision making
+            if unvisited_neighbors:
+                # We choose a random direction from the available ones
+                direction, nx, ny = random.choice(unvisited_neighbors)
+
+                # We break the walls between the current cell and its neighbor
+                self.connect_cells(x, y, direction)
+
+                # We move to the new cell:
+                # we add it to the stack and the visited cell
+                stack.append((nx, ny))
+                visited.add((nx, ny))
+            else:
+                # Dead end! No free neighbors.
+                # We remove the current cell from the stack to backtrack.
+                stack.pop()
+
+    def make_imperfect(self, probability: float = 0.07) -> None:
+        """
+        Navigate the maze and break down internal walls randomly
+        to create loops (multiple paths), making it IMPERFECT.
+        """
+
+        # We scan all cells except the outer edges so as not to break the map
+        for y in range(self.height):
+            for x in range(self.width):
+                current_cell = self.grid[(x, y)]
+
+                # We skip cells in pattern 42, they remain completely closed.
+                if current_cell.fixed:
+                    continue
+
+                # --- Attempt to break out to the EAST ---
+                if x < self.width - 1:  # It's not the right outer edge
+                    neighbor_east = self.grid[(x + 1, y)]
+                    # If there's a wall between them, they're not from '42,
+                    # and luck decides it...
+                    if (current_cell.walls & EAST) and not neighbor_east.fixed:
+                        if random.random() < probability:
+                            # We break consistently on both sides
+                            current_cell.walls &= ~EAST
+
+                            neighbor_east.walls &= ~WEST
+
+                # --- Attempt to break through to the SOUTH ---
+                if y < self.height - 1:  # It is not the lower outer edge
+                    neighb_south = self.grid[(x, y + 1)]
+                    # If there's a wall between them, they're not from '42,
+                    # and luck decides it...
+                    if (current_cell.walls & SOUTH) and not neighb_south.fixed:
+                        if random.random() < probability:
+                            # We break consistently on both sides
+                            current_cell.walls &= ~SOUTH
+
+                            neighb_south.walls &= ~NORTH
+
+    def solve(self) -> list[tuple[int, int]]:
+        """
+        Find the shortest path from the entrance to the exit using BFS.
+        Returns a list of tuples with the path coordinates.
+        """
+        # The list of addresses to check, using your constants
+        directions_to_check = [NORTH, EAST, SOUTH, WEST]
+
+        # The exploration queue stores: (current_position, path_traveled)
+        queue = [(self.start, [self.start])]
+
+        # Set to avoid revisiting cells already visited by the BFS
+        visited = {self.start}
+
+        while queue:
+            current_pos, path = queue.pop(0)
+            x, y = current_pos
+
+            # If we reach the exit, we're done! We return the optimal path
+            if current_pos == self.exit:
+                return path
+
+            # We look at what walls the current cell has in the matrix
+            walls = self.grid[(x, y)].walls
+
+            # We checked the 4 possible directions using your constants
+            for direction in directions_to_check:
+                # If the wall bit is 0, it means the path is OPEN
+                if not (walls & direction):
+                    # We use the MOVE dictionary to calculate the
+                    # neighbor's position
+                    dx, dy = MOVE[direction]
+                    nx, ny = x + dx, y + dy
+                    neighbor = (nx, ny)
+
+                    # If the neighbor has not been visited and exists
+                    # on the map, we proceed
+                    if neighbor not in visited and (nx, ny) in self.grid:
+                        visited.add(neighbor)
+                        queue.append((neighbor, path + [neighbor]))
+
+        print("❌ No path was found to solve the labyrinth.")
+        return []
+
+    def append_solution_path(self, best_path: list[tuple[int, int]]) -> None:
+        """
+        Add to the end of the file the sequence of steps
+        (N, E, S, W) that form the shortest path.
+        """
+        if not best_path:
+            print("No path to print")
+            return
+        self.path = best_path
+        try:
+            with open(self.output_file, "a") as f:
+                solution_path = ""
+
+                for i in range(len(best_path) - 1):
+                    x, y = best_path[i]
+                    x_next, y_next = best_path[i + 1]
+
+                    dx = x_next - x
+                    dy = y_next - y
+
+                    if dx == 1:
+                        solution_path += "E"
+                    elif dx == -1:
+                        solution_path += "W"
+                    elif dy == 1:
+                        solution_path += "S"
+                    elif dy == -1:
+                        solution_path += "N"
+                f.write("\n")
+                f.write(solution_path)
+        except IOError as e:
+            print(f"❌ Error writing the solution to the file:{e}")
+        except Exception as e:
+            print(f"General error in write_hex_path: {e}")
+
+    def write_output_file(self) -> None:
+        """
+        Writes the maze configuration to the specified output file.
+        The format includes the hexadecimal array, input, and output.
+        """
+        try:
+            # Opens the file in write mode ("w"). The 'with'
+            # block ensures that it closes automatically upon completion.
+            with open(self.output_file, "w") as f:
+                for y in range(self.height):
+                    for x in range(self.width):
+                        # Converts the format :X to uppercase hex without "0x"
+                        f.write(f"{self.grid[(x, y)].walls:X}")
+                    f.write("\n")
+
+                f.write("\n")
+                f.write(f"{self.start[0]}, {self.start[1]}")
+                f.write("\n")
+                f.write(f"{self.exit[0]}, {self.exit[1]}")
+
+        except IOError as e:
+            print(f"❌ Error writing output file: {e}")
 
     # Getters
     def get_width(self) -> int:
-        return self._width
+        return self.width
 
     def get_height(self) -> int:
-        return self._height
+        return self.height
 
-    def get_maze_cells(self) -> int:
-        return self._grid
-
-    # Setters
-    def set_path(self, start: tuple[int, int],
-                 end: tuple[int, int],
-                 new_path: str) -> None:
-        #TODO: Include validation
-        self._start = start
-        self._end = end
-        position = start
-        for direction in new_path:
-            match direction:
-                case 'N':
-                    position = (position[0], position[1] - 1)
-                case 'E':
-                    position = (position[0] + 1, position[1])
-                case 'S':
-                    position = (position[0], position[1] + 1)
-                case 'W':
-                    position = (position[0] - 1, position[1])
-            self._path.append(position)
-
-    # Conversion
-    def char_to_cell(char: str) -> Cell:
-        if Maze._validate_char(char):
-            cell = Cell(Maze._char_to_cell(char))
-            return cell
+    def get_maze_cells(self) -> dict[tuple[int, int], Cell]:
+        return self.grid
 
     @staticmethod
-    def _char_to_cell(char: str) -> int:
-        valid_chars = ['0', '1', '2', '3',
-                       '4', '5', '6', '7',
-                       '8', '9', 'A', 'B',
-                       'C', 'D', 'E', 'F']
-        for idx in range(len(valid_chars)):
-            if char == valid_chars[idx]:
-                return idx
-        return -1
-    
-    # Validations
-    @staticmethod
-    def _validate_char(char: str) -> bool:
-        valid_chars = ['0', '1', '2', '3',
-                       '4', '5', '6', '7',
-                       '8', '9', 'A', 'B',
-                       'C', 'D', 'E', 'F']
-        return (char in valid_chars)
-    
-    # File 
-    @staticmethod
-    def load_from_file(filepath: str, with_path: bool = True) -> None:
-        width = 0
-        height = 0
-        cells: dict[tuple[int, int], Cell] = {}
+    def generate_maze_output() -> Maze:
+        try:
+            conf = get_config()
+        except ConfigError:
+            sys.exit(1)
 
-        with open(filepath, mode="rt", encoding="utf-8") as file:
-            line = file.readline().strip('\n')
-            cells_str = ''
-            width = len(line)
-            height = 0
-            while line != '':
-                cells_str += line
-                height += 1
-                line = file.readline().strip('\n')
-            for row in range(height):
-                for col in range(width):
-                    cell_idx = (width * row) + col
-                    new_cell = Maze.char_to_cell(cells_str[cell_idx])
-                    cells[(col, row)] = new_cell
-            new_maze = Maze(width, height, cells)
-            if with_path is True:
-                line = file.readline().strip('\n')
-                start = (int(line.split(',')[0]), int(line.split(',')[1]))
-                line = file.readline().strip('\n')
-                end = (int(line.split(',')[0]), int(line.split(',')[1]))
-                path = file.readline().strip('\n')
-                new_maze.set_path(start, end, path)
-        return new_maze
+        width = conf["WIDTH"]
+        height = conf["HEIGHT"]
+        entry = conf["ENTRY"]
+        exit = conf["EXIT"]
+        output_file = conf["OUTPUT_FILE"]
+        is_perfect = conf["PERFECT"]
+        try:
+            raw_seed = conf["SEED"]
+            seed = int(raw_seed)
+        except KeyError:
+            print(r"🎲 No fixed seed. Generating a 100% random maze.")
+            seed = None
+        except ValueError:
+            print("Seed is only valid in INT format. Generating random maze.")
+            seed = None
+        try:
+            maze = Maze(width, height, entry, exit, output_file, seed)
+        except (ValueError, KeyError) as e:
+            print(e)
+            sys.exit(1)
 
+        # If the user does NOT want a perfect maze (the PERFECT flag is False)
+        if not is_perfect:
+            print("🎲 Adding alternate paths and loops...")
+            maze.make_imperfect()
+            # It breaks approximately 7% of internal walls
 
-if __name__ == "__main__":
-    maze = Maze.load_from_file("example_maze.txt")
+        # We write to the output
+        maze.write_output_file()
+
+        best_path = maze.solve()
+        maze.append_solution_path(best_path)
+        return maze
