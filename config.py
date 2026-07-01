@@ -18,6 +18,9 @@ class ConfigError(Exception):
 
 
 def validate_config(config: dict[str, Any]) -> bool:
+    for key, value in CONFIG_FIELDS.items():
+        if key not in config.keys():
+            raise ConfigError(f"{key} not found in config file.")
     if len(config) < len(CONFIG_FIELDS):
         raise ConfigError("Not enough fields defined in configuration file.")
     elif config["WIDTH"] < 2:
@@ -44,21 +47,20 @@ def format_config(line: str) -> list[Any]:
         raise ConfigError(f"Invalid line format '{line}'.\n"
                           "The configuration file must contain "
                           "one 'KEY'='VALUE' pair per line.")
-    if lst[0] not in CONFIG_FIELDS.keys():
-        raise ConfigError(f"Invalid configuration field {lst[0]}")
-    # Formatting the VALUE part to the proper type.
-    if (CONFIG_FIELDS[lst[0]] is int
-            or CONFIG_FIELDS[lst[0]] is str
-            or CONFIG_FIELDS[lst[0]] is bool):
-        lst[1] = CONFIG_FIELDS[lst[0]](lst[1])
-    elif CONFIG_FIELDS[lst[0]] is tuple:
-        tuple_lst: list[Any] = lst[1].split(',')
-        if len(tuple_lst) != 2:
-            raise ConfigError(f"Not supported field type '{lst[1]}'.")
+    if lst[0] in CONFIG_FIELDS.keys():
+        # Formatting the VALUE part to the proper type.
+        if (CONFIG_FIELDS[lst[0]] is int
+                or CONFIG_FIELDS[lst[0]] is str
+                or CONFIG_FIELDS[lst[0]] is bool):
+            lst[1] = CONFIG_FIELDS[lst[0]](lst[1])
+        elif CONFIG_FIELDS[lst[0]] is tuple:
+            tuple_lst: list[Any] = lst[1].split(',')
+            if len(tuple_lst) != 2:
+                raise ConfigError(f"Invalid tuple for '{lst[0]}': '{lst[1]}'.")
+            else:
+                lst[1] = (int(tuple_lst[0]), int(tuple_lst[1]))
         else:
-            lst[1] = (int(tuple_lst[0]), int(tuple_lst[0]))
-    else:
-        raise ConfigError(f"Not supported field type '{lst[1]}'.")
+            raise ConfigError()
     return lst
 
 
@@ -74,5 +76,9 @@ def get_config() -> dict[str, Any]:
 
 
 if __name__ == "__main__":
-    config_content = get_config()
-    print(config_content)
+    try:
+        config_content = get_config()
+        print(config_content)
+    except (ConfigError) as msg:
+        print(msg)
+

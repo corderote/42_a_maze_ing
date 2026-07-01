@@ -7,16 +7,18 @@ class MazeError(Exception):
 
 
 class Cell():
-    def __init__(self, value: int = 0b1111, fixed: bool = False) -> None:
+    def __init__(self, value: int = 0b1111) -> None:
         self.walls = value
-        self.fixed = fixed
-    
+        self.fixed = False
+        if value == 15:
+            self.fixed = True   
+
     def get_north(self) -> int:
         return (self.walls & 0b0001)
 
     def get_east(self) -> int:
         return ((self.walls & 0b0010) >> 1)
-    
+
     def get_south(self) -> int:
         return ((self.walls & 0b0100) >> 2)
 
@@ -26,7 +28,7 @@ class Cell():
 
 class Maze():
     # Variables
-    _width: int = 0 
+    _width: int = 0
     _height: int = 0
     _grid: dict[tuple[int, int], Cell]
 
@@ -45,18 +47,18 @@ class Maze():
 
     # Getters
     def get_width(self) -> int:
-        return self._width 
+        return self._width
 
     def get_height(self) -> int:
-        return self._height 
+        return self._height
 
     def get_maze_cells(self) -> int:
-        return self._cells 
+        return self._grid
 
     # Setters
     def set_path(self, start: tuple[int, int],
-                       end: tuple[int, int],
-                       new_path: str) -> None:
+                 end: tuple[int, int],
+                 new_path: str) -> None:
         #TODO: Include validation
         self._start = start
         self._end = end
@@ -81,8 +83,8 @@ class Maze():
 
     @staticmethod
     def _char_to_cell(char: str) -> int:
-        valid_chars = ['0', '1', '2', '3', 
-                       '4', '5', '6', '7', 
+        valid_chars = ['0', '1', '2', '3',
+                       '4', '5', '6', '7',
                        '8', '9', 'A', 'B',
                        'C', 'D', 'E', 'F']
         for idx in range(len(valid_chars)):
@@ -93,16 +95,15 @@ class Maze():
     # Validations
     @staticmethod
     def _validate_char(char: str) -> bool:
-        valid_chars = ['0', '1', '2', '3', 
-                       '4', '5', '6', '7', 
+        valid_chars = ['0', '1', '2', '3',
+                       '4', '5', '6', '7',
                        '8', '9', 'A', 'B',
                        'C', 'D', 'E', 'F']
         return (char in valid_chars)
-
     
     # File 
     @staticmethod
-    def load_from_file(filepath: str) -> None:
+    def load_from_file(filepath: str, with_path: bool = True) -> None:
         width = 0
         height = 0
         cells: dict[tuple[int, int], Cell] = {}
@@ -116,23 +117,21 @@ class Maze():
                 cells_str += line
                 height += 1
                 line = file.readline().strip('\n')
-
             for row in range(height):
                 for col in range(width):
-                    cell_idx = (width* row) + col
+                    cell_idx = (width * row) + col
                     new_cell = Maze.char_to_cell(cells_str[cell_idx])
                     cells[(col, row)] = new_cell
-
-            line = file.readline().strip('\n')
-            start = (int(line.split(',')[0]), int(line.split(',')[1]))
-            line = file.readline().strip('\n')
-            end = (int(line.split(',')[0]), int(line.split(',')[1]))
-            path = file.readline().strip('\n')
-            
             new_maze = Maze(width, height, cells)
-            new_maze.set_path(start, end, path)
+            if with_path is True:
+                line = file.readline().strip('\n')
+                start = (int(line.split(',')[0]), int(line.split(',')[1]))
+                line = file.readline().strip('\n')
+                end = (int(line.split(',')[0]), int(line.split(',')[1]))
+                path = file.readline().strip('\n')
+                new_maze.set_path(start, end, path)
         return new_maze
+
 
 if __name__ == "__main__":
     maze = Maze.load_from_file("example_maze.txt")
-    pass
