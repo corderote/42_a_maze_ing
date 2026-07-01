@@ -18,7 +18,7 @@ class ConfigError(Exception):
 
 
 def validate_config(config: dict[str, Any]) -> bool:
-    for key, value in CONFIG_FIELDS.items():
+    for key, _ in CONFIG_FIELDS.items():
         if key not in config.keys():
             raise ConfigError(f"{key} not found in config file.")
     if len(config) < len(CONFIG_FIELDS):
@@ -27,11 +27,11 @@ def validate_config(config: dict[str, Any]) -> bool:
         raise ConfigError(f"Invalid 'WIDTH' field {config['WIDTH']}")
     elif config["HEIGHT"] < 2:
         raise ConfigError(f"Invalid 'HEIGHT' field {config['HEIGHT']}")
-    elif (config["ENTRY"][0] < 0 or config["ENTRY"][0] > config["WIDTH"] or
-            config["ENTRY"][1] < 0 or config["ENTRY"][1] > config["HEIGHT"]):
+    elif (config["ENTRY"][0] < 0 or config["ENTRY"][0] > config["WIDTH"] - 1 or
+            config["ENTRY"][1] < 0 or config["ENTRY"][1] > config["HEIGHT"] - 1):
         raise ConfigError(f"Invalid 'ENTRY' field {config['ENTRY']}")
-    elif (config["EXIT"][0] < 0 or config["EXIT"][0] > config["WIDTH"] or
-            config["EXIT"][1] < 0 or config["EXIT"][1] > config["HEIGHT"]):
+    elif (config["EXIT"][0] < 0 or config["EXIT"][0] > config["WIDTH"] - 1 or
+            config["EXIT"][1] < 0 or config["EXIT"][1] > config["HEIGHT"] - 1):
         raise ConfigError(f"Invalid 'EXIT' field {config['EXIT']}")
     elif config["ENTRY"] == config["EXIT"]:
         raise ConfigError(f"'ENTRY' and 'EXIT' fields can not be equal "
@@ -42,6 +42,8 @@ def validate_config(config: dict[str, Any]) -> bool:
 
 def format_config(line: str) -> list[Any]:
     # Validate line:
+    if line == '':
+        return
     lst: list[Any] = line.strip('\n').split('=')
     if len(lst) != 2 and line[0] != '#':
         raise ConfigError(f"Invalid line format '{line}'.\n"
@@ -69,8 +71,9 @@ def get_config() -> dict[str, Any]:
     with open("config.txt", mode="rt", encoding="utf-8") as file:
         file_c = file.read().split('\n')
         for line in file_c:
-            value = format_config(line)
-            content[value[0]] = value[1]
+            if line != '':
+                value = format_config(line)
+                content[value[0]] = value[1]
     validate_config(content)
     return content
 
@@ -81,4 +84,3 @@ if __name__ == "__main__":
         print(config_content)
     except (ConfigError) as msg:
         print(msg)
-
