@@ -1,6 +1,9 @@
+from __future__ import annotations
 from cell import Cell
-from constants import NORTH, EAST, SOUTH, WEST, OPPOSITE, MOVE
+from constants import NORTH, EAST, SOUTH, WEST, OPPOSITE, MOVE, STAMP
 import random
+import sys
+from settings_maze import get_config, ConfigError
 
 
 class Maze:
@@ -14,7 +17,7 @@ class Maze:
         else:
             self.seed = random.randint(1, 1000000)
             print(f"Seed: {self.seed}")
-        random.seed(seed)
+        random.seed(self.seed)
         self.width = width
         self.height = height
         self.start = start
@@ -24,10 +27,10 @@ class Maze:
         for y in range(height):
             for x in range(width):
                 self.grid[(x, y)] = Cell()
+        self.path: list[tuple[int, int]] = []
         self._ft_pattern()
         if self.grid[self.start].fixed:
             raise ValueError("The ENTRY position in '42' pattern!")
-
         if self.grid[self.exit].fixed:
             raise ValueError("The EXIT position in pattern '42'!")
         self.generate()
@@ -73,13 +76,7 @@ class Maze:
         # 1. We define the mini stamp as 7 columns wide x 5 high
         # 1 = Wall of number '42' (blocked cell)
         # 0 = Free space for aisle
-        stamp = [
-            [1, 0, 1, 0, 1, 1, 1],  # 4   2
-            [1, 0, 1, 0, 0, 0, 1],
-            [1, 1, 1, 0, 1, 1, 1],
-            [0, 0, 1, 0, 1, 0, 0],
-            [0, 0, 1, 0, 1, 1, 1]
-        ]
+        stamp = STAMP
         stamp_w = 7
         stamp_h = 5
 
@@ -188,81 +185,84 @@ class Maze:
 
                             neighb_south.walls &= ~NORTH
 
-    def show_maze(self) -> None:
+    def solve(self) -> list:
         """
-        Prints the maze in the terminal using ASCII characters to
-        show the walls visually.
+        Find the shortest path from the entrance to the exit using BFS.
+        Returns a list of tuples with the path coordinates.
         """
-        print("\n--- Visual Maze ---")
-        for y in range(self.height):
-            top_line = ""
-            mid_line = ""
+        # The list of addresses to check, using your constants
+        directions_to_check = [NORTH, EAST, SOUTH, WEST]
 
-            for x in range(self.width):
-                cell = self.grid[(x, y)]
+        # The exploration queue stores: (current_position, path_traveled)
+        queue = [(self.start, [self.start])]
 
-                # --- TOP LINE (Roofs / NORTH) ---
-                top_line += "+"  # Corner
-                if cell.walls & NORTH:
-                    top_line += "---"
-                else:
-                    top_line += "   "
+        # Set to avoid revisiting cells already visited by the BFS
+        visited = {self.start}
 
-                # --- MIDDLE LINE (Side walls / WEST) ---
-                if cell.walls & WEST:
-                    mid_line += "|"
-                else:
-                    mid_line += " "
+        while queue:
+            current_pos, path = queue.pop(0)
+            x, y = current_pos
 
-                # Start (S) and exit (E) indicators within the cells
-                # If cell.fixed ("███")
-                if cell.fixed:
-                    mid_line += "███"
-                elif (x, y) == self.start:
-                    mid_line += " S "
-                elif (x, y) == self.exit:
-                    mid_line += " E "
-                else:
-                    mid_line += "   "
-            top_line += "+"
+            # If we reach the exit, we're done! We return the optimal path
+            if current_pos == self.exit:
+                return path
 
-            # When the row is finished, we close the right ends.
-            last_cell = self.grid[(self.width - 1, y)]
-            if last_cell.walls & EAST:
-                mid_line += "|"
-            else:
-                mid_line += " "
+            # We look at what walls the current cell has in the matrix
+            walls = self.grid[(x, y)].walls
 
-            print(top_line)
-            print(mid_line)
-        # Floor at the back of the labyrinth to close the drawing
-        bottom_line = ""
-        for x in range(self.width):
-            bottom_line += "+"
-            last_row_cell = self.grid[(x, self.height - 1)]
-            if last_row_cell.walls & SOUTH:
-                bottom_line += "---"
-            else:
-                bottom_line += "   "
-        bottom_line += "+"
-        print(bottom_line)
+            # We checked the 4 possible directions using your constants
+            for direction in directions_to_check:
+                # If the wall bit is 0, it means the path is OPEN
+                if not (walls & direction):
+                    # We use the MOVE dictionary to calculate the
+                    # neighbor's position
+                    dx, dy = MOVE[direction]
+                    nx, ny = x + dx, y + dy
+                    neighbor = (nx, ny)
 
-    def show_maze_hex(self) -> None:
+                    # If the neighbor has not been visited and exists
+                    # on the map, we proceed
+                    if neighbor not in visited and (nx, ny) in self.grid:
+                        visited.add(neighbor)
+                        queue.append((neighbor, path + [neighbor]))
+
+        print("❌ No path was found to solve the labyrinth.")
+        return []
+
+    def append_solution_path(self, best_path: list[tuple[int, int]]) -> None:
         """
-        Prints the maze in the terminal using the exact hexadecimal
-        representation that goes into the output file.
+        Add to the end of the file the sequence of steps
+        (N, E, S, W) that form the shortest path.
         """
-        print("--- Maze Grid (Hex) ---")
-        for y in range(self.height):
-            row_str = ""
-            for x in range(self.width):
-                cell = self.grid[(x, y)]
-                # We use :X to convert it to uppercase hexadecimal
-                row_str += f"{cell.walls:X}"
-            print(row_str)
+        if not best_path:
+            print("No path to print")
+            return
+        self.path = best_path
+        try:
+            with open(self.output_file, "a") as f:
+                solution_path = ""
 
-        print(f"Start: {self.start[0]}, {self.start[1]}")
-        print(f"Exit:  {self.exit[0]}, {self.exit[1]}")
+                for i in range(len(best_path) - 1):
+                    x, y = best_path[i]
+                    x_next, y_next = best_path[i + 1]
+
+                    dx = x_next - x
+                    dy = y_next - y
+
+                    if dx == 1:
+                        solution_path += "E"
+                    elif dx == -1:
+                        solution_path += "W"
+                    elif dy == 1:
+                        solution_path += "S"
+                    elif dy == -1:
+                        solution_path += "N"
+                f.write("\n")
+                f.write(solution_path)
+        except IOError as e:
+            print(f"❌ Error writing the solution to the file:{e}")
+        except Exception as e:
+            print(f"General error in write_hex_path: {e}")
 
     def write_output_file(self) -> None:
         """
@@ -286,3 +286,44 @@ class Maze:
 
         except IOError as e:
             print(f"❌ Error writing output file: {e}")
+
+    @staticmethod
+    def generate_maze_output() -> Maze:
+        try:
+            conf = get_config()
+        except ConfigError:
+            sys.exit(1)
+
+        width = conf["WIDTH"]
+        height = conf["HEIGHT"]
+        entry = conf["ENTRY"]
+        exit = conf["EXIT"]
+        output_file = conf["OUTPUT_FILE"]
+        is_perfect = conf["PERFECT"]
+        try:
+            raw_seed = conf["SEED"]
+            seed = int(raw_seed)
+        except KeyError:
+            print(r"🎲 No fixed seed. Generating a 100% random maze.")
+            seed = None
+        except ValueError:
+            print("Seed is only valid in INT format. Generating random maze.")
+            seed = None
+        try:
+            maze = Maze(width, height, entry, exit, output_file, seed)
+        except (ValueError, KeyError) as e:
+            print(e)
+            sys.exit(1)
+
+        # If the user does NOT want a perfect maze (the PERFECT flag is False)
+        if not is_perfect:
+            print("🎲 Adding alternate paths and loops...")
+            maze.make_imperfect()
+            # It breaks approximately 7% of internal walls
+
+        # We write to the output
+        maze.write_output_file()
+
+        best_path = maze.solve()
+        maze.append_solution_path(best_path)
+        return maze
