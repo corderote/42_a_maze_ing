@@ -6,14 +6,15 @@ import random
 class Maze:
     def __init__(self, width: int, height: int,
                  start: tuple[int, int], exit: tuple[int, int],
-                 output_file: str, seed: int = None) -> None:
+                 output_file: str, seed: int | None = None) -> None:
         if seed is not None:
-            random.seed(seed)
+            self.seed = seed
             print(f"🌱 Seed successfully planted: {seed}"
                   "(The maze will be reproducible)")
         else:
-            print(r"🎲 No fixed seed. Generating a 100% random maze.")
-
+            self.seed = random.randint(1, 1000000)
+            print(f"Seed: {self.seed}")
+        random.seed(seed)
         self.width = width
         self.height = height
         self.start = start
@@ -29,6 +30,7 @@ class Maze:
 
         if self.grid[self.exit].fixed:
             raise ValueError("The EXIT position in pattern '42'!")
+        self.generate()
 
     def connect_cells(self, x: int, y: int, direction: int) -> None:
         """
@@ -83,8 +85,9 @@ class Maze:
 
         # 2. If the maze is too small
         # we don't put the seal on to avoid crashes
-        if self.width < stamp_w or self.height < stamp_h:
-            print("Maze too small to stamp the '42' pattern")
+        if self.width < stamp_w + 2 or self.height < stamp_h + 2:
+            print("Maze too small to stamp the '42' pattern"
+                  "\nMin size 9x7")
             return
 
         # 3. We calculate the mathematical coordinate of the center
@@ -108,10 +111,6 @@ class Maze:
         """
         Generates a perfect maze using DFS with Backtracking.
         """
-        print(f"Starting DFS in the cell: {self.start}")
-        print("Is the starting cell valid?:"
-              f"{self.is_valid_cell(self.start[0], self.start[1])}")
-        # Initial config
         visited = set()
         stack = [self.start]
         visited.add(self.start)
@@ -149,15 +148,6 @@ class Maze:
                 # Dead end! No free neighbors.
                 # We remove the current cell from the stack to backtrack.
                 stack.pop()
-
-    def _ft_pattern2(self) -> None:
-        """
-        Mark 42 cells as fixed, so they cannot be changed.
-        If width < 9 or height < 7 (whatever) no 42 pattern will be created
-        """
-        if self.width >= 9 and self.height <= 7:
-            self.grid
-        ...
 
     def make_imperfect(self, probability: float = 0.07) -> None:
         """
