@@ -1,127 +1,298 @@
-*Este proyecto ha sido creado como parte del currículo de 42 por pcordero[, nlicot-d].*
+*This project has been created as part of the 42 curriculum by pcordero, nlicot-d.*
 
-# A-Maze-Ing
-## Descripción
-- Objetivo y breve descripción general.
+# A-Maze-ing
 
-## Instrucciones
-- información relevante sobre compilación, instalación y/o ejecución
-## Recursos
-- Referencias, uso de la IA.
+## Description
+**A-Maze-ing** is a random maze generator developed in Python 3.10+. The project's main objective is to apply concepts from graph theory, generation algorithms, and resource management to create mazes (which can be configured to be "perfect," guaranteeing a single path between the entrance and exit). Furthermore, the system includes unique features such as the visual insertion of a hidden pattern "42," automatic optimal path resolution, and a modular design that allows the logic engine to be packaged and reused.
 
-- Explicación detallada y la justificación del algoritmo
-seleccionado para este proyecto.
+### Implemented features
 
+#### Mandatory functionality
 
-*This project has been created as part of the 42 curriculum by pcordero[, nlicot-d].*
+- Reads one configuration file passed to `a_maze_ing.py`.
+- Validates required keys: `WIDTH`, `HEIGHT`, `ENTRY`, `EXIT`, `OUTPUT_FILE`, and `PERFECT`.
+- Generates random mazes with DFS.
+- Supports perfect mazes (`PERFECT=True`) with exactly one path between any two cells.
+- Supports imperfect mazes (`PERFECT=False`) by opening extra internal walls while keeping all cells connected and avoiding forbidden 3x3 open areas.
+- Uses `SEED` when provided so the same configuration can reproduce the same maze.
+- Keeps all outer borders closed and validates that entry and exit are inside the maze and different.
+- Places the "42" wall pattern when the maze is large enough; otherwise it displays a clear warning and continues without the pattern.
+- Writes the generated maze to `OUTPUT_FILE` using hexadecimal wall encoding, followed by entry, exit, and the shortest path solution.
+- Finds the shortest path with BFS, including in imperfect mazes where several routes can exist.
+- Displays the maze in the terminal with visible entry (`S`), exit (`E`), walls, optional path, and the "42" pattern.
 
-*This project has been created as part of the 42 curriculum by <tu_login_aquí>.*
+``REVISAR``
+- Provides a reusable `mazegen` Python package buildable with `make build`.
 
-# Maze Generator and Solver
+#### Mandatory user interactive controls
 
-## 📝 Description
-This project focuses on the algorithmic generation and resolution of mazes. The main goal is to build a robust system capable of creating randomized, valid, and fully connected mazes from a set of configurations, and subsequently finding the optimal path from an entry point to an exit point.
+- Re-generate a new maze and display it.
+- Show/Hide a valid shortest path from the entrance to the exit.
+- Change maze wall colours.
+- Quit the program.
 
-The project enforces software engineering constraints typical of the 42 network: error handling, strict validation of grid coordinates, algorithmic efficiency, and a dual visual representation — an ASCII terminal interface and a fully interactive 2D graphical display powered by **MiniLibX (mlx)**.
+#### Additional robustness
 
+- Maze dimensions are capped at `50x50` to keep terminal rendering practical.
+
+## Configuration file format
+
+The configuration file uses `KEY=VALUE` pairs, one per line. Lines starting with `#` are comments and are ignored.
+
+Maze dimensions are limited to `50x50` cells to keep terminal rendering practical and fail gracefully on unreasonable inputs.
+
+| Key | Description | Example |
+|-----|-------------|---------|
+| `WIDTH` | Maze width in cells (integer from 1 to 100) | `WIDTH=20` |
+| `HEIGHT` | Maze height in cells (integer from 1 to 100) | `HEIGHT=15` |
+| `ENTRY` | Entry cell coordinates as x,y | `ENTRY=0,0` |
+| `EXIT` | Exit cell coordinates as x,y | `EXIT=19,14` |
+| `OUTPUT_FILE` | Path to the output file | `OUTPUT_FILE=maze.txt` |
+| `PERFECT` | Whether the maze is perfect | `PERFECT=True` |
+| `SEED` | Optional integer seed for reproducibility | `SEED=42` |
+
+Example `config.txt`:
+
+```
+# A-Maze-ing default configuration
+WIDTH=20
+HEIGHT=15
+ENTRY=0,0
+EXIT=19,14
+OUTPUT_FILE=maze.txt
+PERFECT=True
+
+# Optional seed for reproducible generation.
+# SEED=42
+```
 ---
 
-## ⚙️ Instructions
+## Instructions
+``REVISAR``
+``CAMBIA COSAS DESDE AQUI PCORDERO``
+### Requirements
 
-### Prerequisites
-* **Python 3.10+**
-* **MiniLibX Dependencies** (X11 and AppKit/OpenGL libraries depending on whether you are running on macOS or Linux).
+- Python 3.10 or later
+- `pip` or another package manager
 
-### Execution
-To run the complete pipeline (generation, solving, and graphical rendering), execute the main script from the root of the repository:
+### Installation
 
 ```bash
-python3 main.py
+make install
 ```
 
-# 🛠️ Configuration File Format
+This installs all required dependencies.
 
-The project utilizes a custom configuration file (config.cfg) to ensure modularity and ease of evaluation. Lines starting with # are ignored as comments.Ini, TOML# Core Dimensions
-WIDTH=15
-HEIGHT=11
+### Running the program
 
-# Navigation Points
-START_X=0
-START_Y=0
-EXIT_X=14
-EXIT_Y=10
+```bash
+make run
+```
 
-# Structural Properties
-PERFECT=FALSE
-IMPERFECT_PROBABILITY=0.08
-SEED=43
+Or directly:
 
-🤖 Maze Generation Algorithm
-Algorithm Chosen
-We implemented the Depth-First Search (DFS) with Backtracking algorithm for the core layout generation, complemented by a Wall Braiding (Post-Generation Rupture) phase for imperfect mazes.Why this algorithm?Guaranteed Connectivity: DFS naturally ensures that there are no isolated cells (meeting the "full connectivity" constraint), as it visits every cell in the matrix before finishing.Perfect Baseline: Standard DFS creates a "Perfect Maze" (a tree-like structure with a single definitive path and no loops). This provides a predictable baseline.Controlled Imperfection: By setting PERFECT=FALSE, we scan the completed DFS maze and selectively tear down internal walls based on an exact probability loop. This introduces cycles (multiple paths) safely without risking large open areas ($3 \times 3$ zones), which are strictly forbidden by the subject.
+```bash
+python3 a_maze_ing.py config.txt
+```
 
-♻️ Reusable Components
+Where `config.txt` is your configuration file (see format below).
 
-The architecture was built following Object-Oriented Programming (OOP) principles to allow maximum reusability:The Cell Bitwise Logic: The representation of walls using bitwise flags (NORTH=1, EAST=2, SOUTH=4, WEST=8) is encapsulated. This module can be reused in any 2D tile-based game or grid simulation.The config_loader Module: The parser built to extract data from config.cfg ignores comments and converts strings to proper types dynamically, making it a drop-in utility for any future Python projects at 42.
+### Other Makefile targets
 
-👥 Team and Project Management
+```bash
+make debug       # Run with Python's pdb debugger
+make lint        # Run flake8 and mypy checks
+make lint-strict # Run mypy with --strict flag
+make clean       # Remove __pycache__, .mypy_cache and build artifacts
+```
 
-Roles of Each Team Member nlicot-d: Lead Backend Developer — Focused on the Maze architecture, bitwise wall logic, validation/error management (e.g., verifying start/exit bounds relative to the '42' pattern), and the make_imperfect deterministic seeding.
-pcordero: Frontend UI Developer — Focused on the graphical integration with MiniLibX (mlx), window lifecycle hooks, event handling (keyboard inputs), rendering the tile grid sprites, and visually animating the path from start to exit.
+### Building the mazegen package
 
-Planning and Evolution
+```bash
+make build
+```
 
-Anticipated Planning:
-- Week 1: Parse config files and set up the grid bitmask structure.
-- Week 2: Implement DFS generation and embed the static '42' cell pattern.
-- Week 3: Build the BFS solver, tie it to the MiniLibX window framework, and handle live asset rendering.
+This generates a `.whl` file at the project root, installable via:
 
-Evolution: Integrating MiniLibX required transforming our grid loop data into absolute coordinate pixels ($X \times \text{TILE\_SIZE}$) to ensure the windows scaled fluidly based on the WIDTH and HEIGHT values parsed from the configuration.
-
-Retrospective
-
-What worked well: The decision to track cell positions using Python dictionaries with coordinate tuples (x, y) allowed for instant $O(1)$ lookups and clean spatial validation checks.
-What could be improved: The recursive nature of standard DFS can hit depth limits on massive grid sizes. For future scalability, switching to an iterative DFS using an explicit stack array would prevent potential stack overflows.
-Tools used: Git/GitHub for version control, MiniLibX bindings, Python built-in unittest for validating maze connectivity, and standard text editors (VS Code / Vim).
-
-📚 Resources & AI Usage
-
-Classic References
-Introduction to Algorithms (Cormen et al.) — For foundational graph traversal theories (BFS/DFS).
-Jamis Buck's "Mazes for Programmers" — An excellent guideline for understanding cell connectivity and wall braiding techniques.
-42 Docs MiniLibX Graphics Programming Fundamentals.
-
-Artificial Intelligence Statement
-
-AI (Large Language Models) was used responsibly during the development of this project for the following specific milestones:
-1. Refining the Bitwise Masks: Assisting in drafting clear bitwise operations (&= ~EAST) to safely tear down walls simultaneously between neighboring cells.
-2. Seed Determinism Debugging: Brainstorming why a fixed seed might yield different results across separate machines, which led to substituting unordered .keys() dictionary iterations with strict coordinate loops utilizing range(height) and range(width).
+```bash
+pip install mazegen-*.whl
+```
 
 ---
-Readme Requirements
-A README.md file must be provided at the root of your Git repository. Its purpose is
-to allow anyone unfamiliar with the project (peers, staff, recruiters, etc.) to quickly
-understand what the project is about, how to run it, and where to find more information
-on the topic.
-The README.md must include at least:
-• The very first line must be italicized and read: This project has been created as part
-of the 42 curriculum by <login1>[, <login2>[, <login3>[...]]].
-• A ``“Description”`` section that clearly presents the project, including its goal and a
-brief overview.
-• An ``“Instructions”`` section containing any relevant information about compilation,
-installation, and/or execution.
-• A ``“Resources”`` section listing classic references related to the topic (documentation, articles, tutorials, etc.), as well as a description of how AI was used —
-specifying for which tasks and which parts of the project.
-➠ Additional sections may be required depending on the project (e.g., usage
-examples, feature list, technical choices, etc.).
-Any required additions will be explicitly listed below.
-• The complete structure and format of your config file.
+
+``HASTA AQUÍ PCORDERO``
+
+---
+
+## Maze generation algorithm
+
+We chose **Depth-First Search (DFS) with iterative backtracking**, also known as the recursive backtracker algorithm.
+
+### How it works
+
+1. Start from the entry cell, mark it as visited.
+2. Randomly pick an unvisited neighbor, remove the wall between them, and move to it.
+3. If no unvisited neighbors exist, backtrack to the previous cell.
+4. Repeat until all cells have been visited.
+
+The result is always a **perfect maze** (a spanning tree): exactly one path exists between any two cells.
+
+### Why DFS
+
+- It is simple to implement iteratively with a stack, avoiding Python's recursion limit.
+- It produces mazes with long, winding corridors and relatively few dead ends, which are visually interesting and challenging to solve.
+- It naturally guarantees full connectivity with no isolated cells.
+- It is well-suited for embedding the "42" pattern by pre-marking those cells as visited before generation starts — the DFS simply routes around them.
+
+For `PERFECT=False`, after the selected perfect algorithm we remove a random subset of internal walls (avoiding the 42 pattern and ensuring no 3×3 open areas are created), introducing cycles and multiple valid paths.
+
+### Terminal interactions
+
+``Explain HERE PCORDERO``
+
+---
+
+## Reusable module
+``AQUI ES TODO UN EJEMPLO PORQUE NO LO TENEMOS HECHO``
+The `mazegen` package exposes the maze generation logic as a standalone, importable library with no dependency on the main program.
+
+### Installation
+
+```bash
+pip install mazegen-*.whl
+```
+
+### Basic usage
+
+```python
+from mazegen import MazeGenerator, MazeConfig
+
+config = MazeConfig(
+    width=20,
+    height=15,
+    entry=(0, 0),
+    exit=(19, 14),
+    output_file="maze.txt",
+    perfect=True,
+    seed=42,
+    algorithm="DFS",
+)
+
+generator = MazeGenerator(config)
+generator.generate()
+
+# Access the maze grid (list of lists of Cell objects)
+maze = generator.maze
+
+# Access the 42 pattern cell positions
+pattern = generator.pattern_42
+```
+
+### Passing custom parameters
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `width` | `int` | Number of columns |
+| `height` | `int` | Number of rows |
+| `entry` | `tuple[int, int]` | Entry cell as (x, y) |
+| `exit` | `tuple[int, int]` | Exit cell as (x, y) |
+| `output_file` | `str` | Output filename |
+| `perfect` | `bool` | Perfect maze if True |
+| `seed` | `int \| None` | Seed for reproducibility |
+
+### Accessing the solution
+
+```python
+from mazegen import MazeGenerator, MazeConfig
+from mazegen.pathfinding import find_shortest_path
+
+config = MazeConfig(
+    width=10, height=10,
+    entry=(0, 0), exit=(9, 9),
+    output_file="maze.txt",
+    perfect=True,
+    algorithm="DFS",
+)
+
+generator = MazeGenerator(config)
+generator.generate()
+
+path = find_shortest_path(generator.maze, config.entry, config.exit)
+print("Solution:", "".join(path))  # e.g. "SSEENNESSS..."
+```
+
+---
+
+## Resources
+
+### Algorithm references
+
+- [Maze generation algorithms — Wikipedia](https://en.wikipedia.org/wiki/Maze_generation_algorithm)
+- [Depth-first search — Wikipedia](https://en.wikipedia.org/wiki/Depth-first_search)
+- [Breadth-first search — Wikipedia](https://en.wikipedia.org/wiki/Breadth-first_search)
+- [Think Labyrinth: Maze algorithms](http://www.astrolog.org/labyrnth/algrithm.htm)
+
+### Python references
+
+- [Python `random` module](https://docs.python.org/3/library/random.html)
+- [mypy documentation](https://mypy.readthedocs.io/)
+- [flake8 documentation](https://flake8.pycqa.org/)
+- [Python packaging guide](https://packaging.python.org/en/latest/)
+
+### AI usage
+
+AI tools, including Claude, Gemini and ChatGPT, were used during this project for the following tasks:
+
+- Reviewing and debugging the maze generation logic, particularly the 3×3 open area constraint in imperfect mode.
+- Reviewing error handling, type hints, and edge cases in the Python modules.
+- Drafting and structuring parts of this README.
+- Suggesting test scenarios (seed=0, entry/exit at corners, small mazes without room for the 42 pattern).
+
+All AI-generated suggestions were reviewed, tested, adapted, and understood before being included in the project.
+
+---
+``REVISAR``
+``Notas del subject que hay que tener, ELIMINAR:``
+The complete structure and format of your config file.
 • The maze generation algorithm you chose.
 • Why you chose this algorithm.
 • What part of your code is reusable, and how.
 • Your team and project management with:
 ◦ The roles of each team member.
+14
+A-Maze-ing This is the way
 ◦ Your anticipated planning and how it evolved until the end
 ◦ What worked well and what could be improved
 ◦ Have you used any specific tools? Which ones?
-If you implement advanced features (multiple algorithms, display options), describe them in this README.md file
+``HASTA AQUI``
+
+## Team and project management
+
+### Roles
+- **pcordero**: configuration parsing, terminal rendering, , interactive CLI, packaging and Makefile.
+- **nlicot-d**: maze generation algorithm (DFS, imperfect mode, 42 pattern), pathfinding (BFS), output file format.
+
+
+### Planning
+``REVISAR``
+Our initial plan was to split the project into two parallel tracks: core generation logic and visual/output layer. This worked well in practice — the `Cell` and `MazeConfig` data structures served as a clear contract between both parts.
+
+The main adjustment during development was adding the 3×3 open area constraint for imperfect mazes, which was not anticipated in the initial plan and required revisiting the generation logic.
+
+### What worked well
+
+- The DFS algorithm was easy to reason about and debug visually.
+- ``REVISAR Y RELLENAR``
+
+### What could be improved
+``REVISAR``
+- The imperfect mode could offer more control over the density of added cycles.
+- Additional bonus algorithms could be added in their own files following the same structure as `bonus_prim.py`.
+
+### Tools used
+
+- Python 3.10+
+- `mypy` for static type checking
+- `flake8` for code style
+- `build` for packaging ???? ``REVISAR``
+- Claude, Gemini and ChatGPT for code review and debugging assistance

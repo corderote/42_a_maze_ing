@@ -1,10 +1,10 @@
-from maze import Maze
+from maze import MazeGenerator
 import sys
 
 if __name__ == "__main__":
 
     if len(sys.argv) == 1:
-        maze2 = Maze.generate_maze_output()
+        maze2 = MazeGenerator.generate_maze_output()
         sys.exit(0)
     else:
         print("Argument error.")

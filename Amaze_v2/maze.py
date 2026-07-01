@@ -6,10 +6,51 @@ import sys
 from settings_maze import get_config, ConfigError
 
 
-class Maze:
+class MazeGenerator:
+    """
+    A class to handle the generation, structure, and reproducibility of
+    a perfect maze.
+
+    It initializes a grid of cells, handles random seed management for
+    reproducibility,
+    protects specific patterns from being overwritten, and runs the generation
+    algorithm.
+
+    Attributes:
+        seed (int): The pseudo-random number generator seed used for
+            replication.
+        width (int): The horizontal dimension (number of columns) of the maze.
+        height (int): The vertical dimension (number of rows) of the maze.
+        start (tuple[int, int]): The starting coordinates (X, Y) of the maze.
+        exit (tuple[int, int]): The exit coordinates (X, Y) of the maze.
+        output_file (str): The path to the file where the maze data will
+            be saved.
+        grid (dict[tuple[int, int], Cell]): A map binding coordinates to Cell
+            objects.
+        path (list[tuple[int, int]]): A list holding the coordinates of the
+            solved path.
+    """
     def __init__(self, width: int, height: int,
                  start: tuple[int, int], exit: tuple[int, int],
                  output_file: str, seed: int | None = None) -> None:
+        """
+        Initializes the maze properties, manages the seeding, and builds the
+        initial grid.
+
+        Args:
+            width (int): Total number of columns.
+            height (int): Total number of rows.
+            start (tuple[int, int]): Starting position coordinates as (x, y).
+            exit (tuple[int, int]): Exit/destination coordinates as (x, y).
+            output_file (str): Filename or path to export the maze results.
+            seed (int | None, optional):
+                Specific seed for generation reproducibility.
+                Defaults to None, which generates a random seed.
+
+        Raises:
+            ValueError: If either the start or exit position overlaps with a
+                        fixed cell defined by the protected '42' pattern.
+        """
         if seed is not None:
             self.seed = seed
             print(f"🌱 Seed successfully planted: {seed}"
@@ -37,8 +78,18 @@ class Maze:
 
     def connect_cells(self, x: int, y: int, direction: int) -> None:
         """
-        Breaks the wall of the current cell (x, y) and the opposite wall
-        of its neighbor in the given direction.
+        Carves a path between the current cell and its neighbor in a given
+        direction.
+
+        This method breaks the specified wall of the current cell at (x, y) and
+        simultaneously knocks down the complementary/opposite wall of the
+        adjacent neighbor cell using bitwise NOT (`~`) and AND (`&=`) operators
+
+        Args:
+            x (int): The horizontal coordinate of the current cell.
+            y (int): The vertical coordinate of the current cell.
+            direction (int): The bitmask representing the wall direction to
+                            break (e.g., North, East, South, West).
         """
         # Get the current cell
         current_cell = self.grid[(x, y)]
@@ -58,8 +109,20 @@ class Maze:
 
     def is_valid_cell(self, x: int, y: int) -> bool:
         """
-        Checks if the coordinates (x, y) are inside the maze boundaries.
-        Returns True if they are valid, False otherwise.
+        Determines whether a cell coordinate is a viable candidate for
+        exploration.
+
+        A cell is considered valid if it resides entirely within the physical
+        boundaries of the maze grid and has not been locked/protected as
+        part of the immutable "42" pattern layout.
+
+        Args:
+            x (int): The horizontal coordinate of the cell to validate.
+            y (int): The vertical coordinate of the cell to validate.
+
+        Returns:
+            bool: True if the cell is within bounds and not fixed;
+                False otherwise.
         """
         if not (0 <= x < self.width and 0 <= y < self.height):
             return False
@@ -70,8 +133,22 @@ class Maze:
 
     def _ft_pattern(self) -> None:
         """
-        Calculate the center of the maze and stamp the logo '42'
-        by marking the corresponding cells as fixed (solid walls).
+        Centers and imprints the protected '42' logo pattern onto the maze
+        grid.
+
+        This method calculates the necessary horizontal and vertical offsets
+        to center a pre-defined 7x5 binary matrix (`STAMP`) within the maze
+        boundaries. Cells matching the pattern structure are flagged as
+        `fixed = True`, transforming them into immutable obstacles that
+        the maze generation algorithm is restricted from altering.
+
+        If the maze dimensions are insufficient to safely accommodate the
+        stamp along with a mandatory structural outer aisle margin, the
+        process is safely bypassed.
+
+        Note:
+            The minimum practical dimensions required to successfully mount
+            the pattern are 9 columns by 7 rows.
         """
         # 1. We define the mini stamp as 7 columns wide x 5 high
         # 1 = Wall of number '42' (blocked cell)
@@ -106,7 +183,23 @@ class Maze:
 
     def generate(self) -> None:
         """
-        Generates a perfect maze using DFS with Backtracking.
+        Carves a perfect maze across the grid using Depth-First Search (DFS)
+        with Backtracking.
+
+        This method implements an iterative DFS loop backed by an explicit
+        stack to simulate recursion safely without risk of maximum recursion
+        depth exceptions. It begins at `self.start`, marks cells as visited,
+        and randomly knocks down matching wall boundaries between adjacent
+        available neighbors.
+
+        When the path encounters a dead end (a cell with zero unvisited,
+        valid neighbors), the algorithm backtracks by popping items off the
+        stack until it encounters a previously traversed cell containing
+        untouched avenues of exploration.
+
+        Note:
+            Because the grid guarantees a single path to every cell without
+            cyclical loops, this process yields a 'perfect' maze topology.
         """
         visited = set()
         stack = [self.start]
@@ -148,10 +241,33 @@ class Maze:
 
     def make_imperfect(self, probability: float = 0.07) -> None:
         """
-        Navigate the maze and break down internal walls randomly
-        to create loops (multiple paths), making it IMPERFECT.
-        """
+        Degrades the perfect maze into an imperfect maze by selectively
+        breaking internal walls.
 
+        A perfect maze contains exactly one unique path between any two
+        points and zero loops.
+        This method introduces braid characteristics (loops and alternative
+        routes) by scanning the grid and tearing down walls sharing boundaries
+        with valid neighbors based on a configured probability.
+
+        To preserve structural consistency and protect required features,
+        the method enforces the following constraints:
+        1. Outer Edges Protection: Guarantees that exterior boundary walls are
+           never destroyed, preventing paths from spilling outside the maze
+           grid.
+        2. Immutability Protection: Skips any cells flagged as `fixed` to
+           prevent tampering with the centered "42" pattern layout.
+        3. Density Threshold Constraint: Only attempts to tear down a shared
+           wall if both the current cell and its respective neighbor have at
+           least 3 walls intact (calculated via `bin().count('1')`). This
+           prevents excessive space dilation and ensures the structural
+           corridor layout remains recognizable.
+
+        Args:
+            probability (float, optional):
+                The statistical odds (0.0 to 1.0) of destroying a qualifying
+                wall barrier. Defaults to 0.07 (7%).
+        """
         # We scan all cells except the outer edges so as not to break the map
         for y in range(self.height):
             for x in range(self.width):
@@ -167,11 +283,12 @@ class Maze:
                     # If there's a wall between them, they're not from '42,
                     # and luck decides it...
                     if (current_cell.walls & EAST) and not neighbor_east.fixed:
-                        if random.random() < probability:
-                            # We break consistently on both sides
-                            current_cell.walls &= ~EAST
+                        if bin(current_cell.walls).count('1') >= 3 and bin(neighbor_east.walls).count('1') >= 3:
+                            if random.random() < probability:
+                                # We break consistently on both sides
+                                current_cell.walls &= ~EAST
 
-                            neighbor_east.walls &= ~WEST
+                                neighbor_east.walls &= ~WEST
 
                 # --- Attempt to break through to the SOUTH ---
                 if y < self.height - 1:  # It is not the lower outer edge
@@ -179,16 +296,34 @@ class Maze:
                     # If there's a wall between them, they're not from '42,
                     # and luck decides it...
                     if (current_cell.walls & SOUTH) and not neighb_south.fixed:
-                        if random.random() < probability:
-                            # We break consistently on both sides
-                            current_cell.walls &= ~SOUTH
+                        if (bin(current_cell.walls).count('1') >= 3 and bin(neighb_south.walls).count('1') >= 3):
+                            if random.random() < probability:
+                                # We break consistently on both sides
+                                current_cell.walls &= ~SOUTH
 
-                            neighb_south.walls &= ~NORTH
+                                neighb_south.walls &= ~NORTH
 
-    def solve(self) -> list:
+    def solve(self) -> list[tuple[int, int]]:
         """
-        Find the shortest path from the entrance to the exit using BFS.
-        Returns a list of tuples with the path coordinates.
+        Finds the shortest path from the entrance to the exit using
+        Breadth-First Search (BFS).
+
+        Unlike Depth-First Search, BFS explores the maze layer by layer,
+        spreading out equidistantly like a wave from the starting node. This
+        tracking property mathematically guarantees that the first path to
+        successfully reach `self.exit` is the shortest valid path possible.
+
+        The method handles traversal by matching individual cell bitmasks
+        against directional constants.
+        A bit value of 0 (`not (walls & direction)`) indicates an open
+        passageway, allowing the queue to branch into that neighboring
+        coordinate.
+
+        Returns:
+            list[tuple[int, int]]:
+                A sequential list of coordinate pairs (x, y) tracing
+                the shortest route from entry to exit. Returns an empty
+                list if no viable route exists.
         """
         # The list of addresses to check, using your constants
         directions_to_check = [NORTH, EAST, SOUTH, WEST]
@@ -229,46 +364,55 @@ class Maze:
         print("❌ No path was found to solve the labyrinth.")
         return []
 
-    def append_solution_path(self, best_path: list[tuple[int, int]]) -> None:
+    def write_output_file_mod(self, best_path: list[tuple[int, int]]) -> None:
         """
-        Add to the end of the file the sequence of steps
-        (N, E, S, W) that form the shortest path.
+        Exports the entire maze configuration and its solution to the output
+        file.
+
+        This method acts as the final pipeline for the maze data, writing
+        information in a sequential format fully compatible with automated
+        testing scripts (Moulinette). The export process follows a strict
+        structural schema:
+        1. Grid Layout: Iterates row-by-row, column-by-column, converting each
+           cell's wall bitmask into a single-digit, uppercase hexadecimal
+           value (0-F).
+        2. Structural Break: Places an explicit empty line separator right
+           after the matrix block.
+        3. Coordinates Block: Appends the entry and exit points on separate
+           lines, formatted cleanly as comma-separated values (X,Y).
+        4. Solution String: Translates the sequence of absolute coordinate
+           steps (`best_path`) into relative cardinal movements
+           ('N', 'E', 'S', 'W') by calculating index differentials, appending
+           the final string with a trailing newline character.
+
+        Args:
+            best_path (list[tuple[int, int]]):
+                A chronological list of grid coordinates representing the
+                calculated solution route.
+
+        Raises:
+            IOError: Captured and handled internally if a system-level
+                     file-writing error occurs (e.g., permission restriction).
+            Exception: Captured and handled internally as a fallback mechanism
+                       for unexpected execution failures.
         """
-        if not best_path:
-            print("No path to print")
-            return
         self.path = best_path
-        try:
-            with open(self.output_file, "a") as f:
-                solution_path = ""
+        solution_path = ""
+        for i in range(len(best_path) - 1):
+            x, y = best_path[i]
+            x_next, y_next = best_path[i + 1]
 
-                for i in range(len(best_path) - 1):
-                    x, y = best_path[i]
-                    x_next, y_next = best_path[i + 1]
+            dx = x_next - x
+            dy = y_next - y
 
-                    dx = x_next - x
-                    dy = y_next - y
-
-                    if dx == 1:
-                        solution_path += "E"
-                    elif dx == -1:
-                        solution_path += "W"
-                    elif dy == 1:
-                        solution_path += "S"
-                    elif dy == -1:
-                        solution_path += "N"
-                f.write("\n")
-                f.write(solution_path)
-        except IOError as e:
-            print(f"❌ Error writing the solution to the file:{e}")
-        except Exception as e:
-            print(f"General error in write_hex_path: {e}")
-
-    def write_output_file(self) -> None:
-        """
-        Writes the maze configuration to the specified output file.
-        The format includes the hexadecimal array, input, and output.
-        """
+            if dx == 1:
+                solution_path += "E"
+            elif dx == -1:
+                solution_path += "W"
+            elif dy == 1:
+                solution_path += "S"
+            elif dy == -1:
+                solution_path += "N"
         try:
             # Opens the file in write mode ("w"). The 'with'
             # block ensures that it closes automatically upon completion.
@@ -280,15 +424,76 @@ class Maze:
                     f.write("\n")
 
                 f.write("\n")
-                f.write(f"{self.start[0]}, {self.start[1]}")
+                f.write(f"{self.start[0]},{self.start[1]}")
                 f.write("\n")
-                f.write(f"{self.exit[0]}, {self.exit[1]}")
+                f.write(f"{self.exit[0]},{self.exit[1]}")
+                f.write("\n")
+                f.write(f"{solution_path}")
+                f.write("\n")
 
         except IOError as e:
             print(f"❌ Error writing output file: {e}")
+        except Exception as e:
+            print(f"General error in write_output_file_mod: {e}")
+
+    # Getters
+    def get_width(self) -> int:
+        """
+        Retrieves the total width (number of columns) of the maze grid.
+
+        Returns:
+            int: The width dimension of the maze.
+        """
+        return self.width
+
+    def get_height(self) -> int:
+        """
+        Retrieves the total height (number of rows) of the maze grid.
+
+        Returns:
+            int: The height dimension of the maze.
+        """
+        return self.height
+
+    def get_maze_cells(self) -> dict[tuple[int, int], Cell]:
+        """
+        Retrieves the internal grid dictionary containing all coordinate-cell
+        pairs.
+
+        Returns:
+            dict[tuple[int, int], Cell]: The full maze grid structure mapped
+            by (x, y) coordinates.
+        """
+        return self.grid
 
     @staticmethod
-    def generate_maze_output() -> Maze:
+    def generate_maze_output() -> MazeGenerator:
+        """
+        Orchestrates the entire setup, generation, execution, and export of a
+        maze instance.
+
+        This static factory method reads user configuration parameters
+        (dimensions, coordinates, output targets, and reproducibility options)
+        through an external configuration pipeline. It builds the base maze
+        structure, handles potential seed type casting failures by falling
+        back gracefully to non-reproducible randomness, and instantiates the
+        generation logic.
+
+        Depending on configuration settings, it conditionally degrades the
+        perfect grid topology to add loops/cycles, executes the pathfinding
+        solver to track down the optimal route, and triggers a comprehensive
+        export write to disk.
+
+        Returns:
+            MazeGenerator: A fully generated, solved, and exported instance of
+            the maze class.
+
+        Raises:
+            SystemExit (1): Triggered if config extraction encounters critical
+            definition or validation errors (`ConfigError`), or if grid
+            instantiation yields structural violations (e.g., entrance/exit
+            positions overlapping a protected layout).
+        """
         try:
             conf = get_config()
         except ConfigError:
@@ -310,7 +515,7 @@ class Maze:
             print("Seed is only valid in INT format. Generating random maze.")
             seed = None
         try:
-            maze = Maze(width, height, entry, exit, output_file, seed)
+            maze = MazeGenerator(width, height, entry, exit, output_file, seed)
         except (ValueError, KeyError) as e:
             print(e)
             sys.exit(1)
@@ -321,9 +526,9 @@ class Maze:
             maze.make_imperfect()
             # It breaks approximately 7% of internal walls
 
-        # We write to the output
-        maze.write_output_file()
-
+        # We solve the maze
         best_path = maze.solve()
-        maze.append_solution_path(best_path)
+
+        # We write to the output
+        maze.write_output_file_mod(best_path)
         return maze

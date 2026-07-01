@@ -18,7 +18,7 @@ class ConfigError(Exception):
 
 
 def validate_config(config: dict[str, Any]) -> bool:
-    for key, value in CONFIG_FIELDS.items():
+    for key, _value in CONFIG_FIELDS.items():
         if key not in config.keys():
             raise ConfigError(f"{key} not found in config file.")
     if len(config) < len(CONFIG_FIELDS):
