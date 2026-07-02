@@ -38,9 +38,8 @@ def color_click_function() -> tuple[Callable[[], None], Callable[[], int]]:
 def mlx_update(data: Any) -> None:
     data[0].mlx_clear_window(data[1], data[2])
     data[3].set_img_list(data[5][data[7]()])
-    data[3].mlx_print_maze()
-    if data[6]() is True:
-        data[3].mlx_print_path()
+    data[3].mlx_print_maze(data[3].get_maze_pos())
+    data[3].mlx_print_path(data[3].get_maze_pos(), data[6]())
     for btn in data[4]:
         btn.print()
 
@@ -61,8 +60,13 @@ def mlx_main_func(conf_filepath: str) -> None:
     p = m.mlx_init()
     w_width = (maze.get_width()*2+1)*16
     w_height = (maze.get_height()*2+1)*16 + 80
-    if w_width < 640:
+    maze_pos: tuple[int, int] = (0, 0)
+    button_pos_x = 0
+    if w_width <= 640:
+        maze_pos = ((640-w_width)//2, 0)
         w_width = 640
+    else:
+        button_pos_x = (w_width//2 - 320)
     w = m.mlx_new_window(p, w_width, w_height, "test")
 
     img_dict = {}
@@ -78,23 +82,24 @@ def mlx_main_func(conf_filepath: str) -> None:
 
     mlx_maze = MLX_Maze(m, p, w, maze, img_dict[1])
     mlx_maze.set_config_filepath(conf_filepath)
+    mlx_maze.set_maze_pos(maze_pos)
 
     nb_img = m.mlx_png_file_to_image(p, MLX_BUTTON_IMGS[0])
-    nb = MLX_Button(m, p, w, nb_img, (0, w_height - 80))
+    nb = MLX_Button(m, p, w, nb_img, (button_pos_x + 0, w_height - 80))
     nb.set_function(mlx_maze.gen_new_maze)
 
     pb_img = m.mlx_png_file_to_image(p, MLX_BUTTON_IMGS[1])
-    pb = MLX_Button(m, p, w, pb_img, (160, w_height - 80))
+    pb = MLX_Button(m, p, w, pb_img, (button_pos_x + 160, w_height - 80))
     p_func = path_click_function()
     pb.set_function(p_func[0])
 
     cb_img = m.mlx_png_file_to_image(p, MLX_BUTTON_IMGS[2])
-    cb = MLX_Button(m, p, w, cb_img, (320, w_height - 80))
+    cb = MLX_Button(m, p, w, cb_img, (button_pos_x + 320, w_height - 80))
     c_func = color_click_function()
     cb.set_function(c_func[0])
 
     eb_img = m.mlx_png_file_to_image(p, MLX_BUTTON_IMGS[3])
-    eb = MLX_Button(m, p, w, eb_img, (480, w_height - 80))
+    eb = MLX_Button(m, p, w, eb_img, (button_pos_x + 480, w_height - 80))
     eb.set_function(eb.mlx_close_window)
 
     data = [m, p, w, mlx_maze,

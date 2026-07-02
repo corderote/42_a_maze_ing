@@ -35,6 +35,6 @@ class MLX_Button():
                                         self._pos[0], self._pos[1])
 
     def mlx_close_window(self) -> None:
-        print("Cerrando.")
+        print("Closing ...")
         self._m.mlx_destroy_window(self._p, self._w)
         self._m.mlx_loop_exit(self._p)

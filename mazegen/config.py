@@ -32,6 +32,10 @@ def validate_config(config: dict[str, Any]) -> bool:
     elif (config["EXIT"][0] < 0 or config["EXIT"][0] > config["WIDTH"] - 1 or
           config["EXIT"][1] < 0 or config["EXIT"][1] > config["HEIGHT"] - 1):
         raise ConfigError(f"Invalid 'EXIT' field {config['EXIT']}")
+    # Validate OUTPUT_FILE:
+    if config["OUTPUT_FILE"].endswith('.py'):
+        raise ConfigError("ARE YOU DUMB? "
+                          "OUTPUT_FILE can not end with '.py'")
     return True
 
 

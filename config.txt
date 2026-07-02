@@ -1,9 +1,9 @@
 # CONFIGURATION FILE FOR A_MAZE_ING:
 
 # WIDTH: Expected type int between 2 and 50
-WIDTH=30
+WIDTH=50
 # HEIGHT: Expected type int between 2 and 50
-HEIGHT=30
+HEIGHT=50
 # ENTRY: Expected type tuple format 'x,y'
 ENTRY=3,14
 # EXIT: Expected type tuple format 'x,y'
@@ -11,6 +11,6 @@ EXIT=25,7
 # OUTPUT_FILE: Expected type str
 OUTPUT_FILE=maze.txt
 # PERFECT: Expected type bool
-PERFECT=True
+PERFECT=False
 # SEED: Optional value, expected type str
-SEED=Hola
+SEED=42
