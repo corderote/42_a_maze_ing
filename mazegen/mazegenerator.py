@@ -1,12 +1,12 @@
 from __future__ import annotations
-from cell import Cell
-from constants import NORTH, EAST, SOUTH, WEST, OPPOSITE, MOVE, STAMP
+from mazegen.cell import Cell
+from mazegen.constants import NORTH, EAST, SOUTH, WEST, OPPOSITE, MOVE, STAMP
 import random
 import sys
-from config import get_config, ConfigError
+from mazegen.config import get_config, ConfigError
 
 
-class Maze:
+class MazeGenerator:
     def __init__(self, width: int, height: int,
                  start: tuple[int, int], exit: tuple[int, int],
                  output_file: str, seed: int | None = None) -> None:
@@ -167,11 +167,13 @@ class Maze:
                     # If there's a wall between them, they're not from '42,
                     # and luck decides it...
                     if (current_cell.walls & EAST) and not neighbor_east.fixed:
-                        if random.random() < probability:
-                            # We break consistently on both sides
-                            current_cell.walls &= ~EAST
+                        if (bin(current_cell.walls).count('1') >= 3 and
+                           bin(neighbor_east.walls).count('1') >= 3):
+                            if random.random() < probability:
+                                # We break consistently on both sides
+                                current_cell.walls &= ~EAST
 
-                            neighbor_east.walls &= ~WEST
+                                neighbor_east.walls &= ~WEST
 
                 # --- Attempt to break through to the SOUTH ---
                 if y < self.height - 1:  # It is not the lower outer edge
@@ -179,11 +181,13 @@ class Maze:
                     # If there's a wall between them, they're not from '42,
                     # and luck decides it...
                     if (current_cell.walls & SOUTH) and not neighb_south.fixed:
-                        if random.random() < probability:
-                            # We break consistently on both sides
-                            current_cell.walls &= ~SOUTH
+                        if (bin(current_cell.walls).count('1') >= 3 and
+                           bin(neighb_south.walls).count('1') >= 3):
+                            if random.random() < probability:
+                                # We break consistently on both sides
+                                current_cell.walls &= ~SOUTH
 
-                            neighb_south.walls &= ~NORTH
+                                neighb_south.walls &= ~NORTH
 
     def solve(self) -> list[tuple[int, int]]:
         """
@@ -229,46 +233,28 @@ class Maze:
         print("❌ No path was found to solve the labyrinth.")
         return []
 
-    def append_solution_path(self, best_path: list[tuple[int, int]]) -> None:
-        """
-        Add to the end of the file the sequence of steps
-        (N, E, S, W) that form the shortest path.
-        """
-        if not best_path:
-            print("No path to print")
-            return
-        self.path = best_path
-        try:
-            with open(self.output_file, "a") as f:
-                solution_path = ""
-
-                for i in range(len(best_path) - 1):
-                    x, y = best_path[i]
-                    x_next, y_next = best_path[i + 1]
-
-                    dx = x_next - x
-                    dy = y_next - y
-
-                    if dx == 1:
-                        solution_path += "E"
-                    elif dx == -1:
-                        solution_path += "W"
-                    elif dy == 1:
-                        solution_path += "S"
-                    elif dy == -1:
-                        solution_path += "N"
-                f.write("\n")
-                f.write(solution_path)
-        except IOError as e:
-            print(f"❌ Error writing the solution to the file:{e}")
-        except Exception as e:
-            print(f"General error in write_hex_path: {e}")
-
-    def write_output_file(self) -> None:
+    def write_output_file_mod(self, best_path: list[tuple[int, int]]) -> None:
         """
         Writes the maze configuration to the specified output file.
-        The format includes the hexadecimal array, input, and output.
+        The format includes the hexadecimal array, input, output and path.
         """
+        self.path = best_path
+        solution_path = ""
+        for i in range(len(best_path) - 1):
+            x, y = best_path[i]
+            x_next, y_next = best_path[i + 1]
+
+            dx = x_next - x
+            dy = y_next - y
+
+            if dx == 1:
+                solution_path += "E"
+            elif dx == -1:
+                solution_path += "W"
+            elif dy == 1:
+                solution_path += "S"
+            elif dy == -1:
+                solution_path += "N"
         try:
             # Opens the file in write mode ("w"). The 'with'
             # block ensures that it closes automatically upon completion.
@@ -280,12 +266,17 @@ class Maze:
                     f.write("\n")
 
                 f.write("\n")
-                f.write(f"{self.start[0]}, {self.start[1]}")
+                f.write(f"{self.start[0]},{self.start[1]}")
                 f.write("\n")
-                f.write(f"{self.exit[0]}, {self.exit[1]}")
+                f.write(f"{self.exit[0]},{self.exit[1]}")
+                f.write("\n")
+                f.write(f"{solution_path}")
+                f.write("\n")
 
         except IOError as e:
             print(f"❌ Error writing output file: {e}")
+        except Exception as e:
+            print(f"General error in write_output_file_mod: {e}")
 
     # Getters
     def get_width(self) -> int:
@@ -297,10 +288,10 @@ class Maze:
     def get_maze_cells(self) -> dict[tuple[int, int], Cell]:
         return self.grid
 
-    @staticmethod
-    def generate_maze_output() -> Maze:
+    @classmethod
+    def generate_maze_output(cls, filepath: str) -> MazeGenerator:
         try:
-            conf = get_config()
+            conf = get_config(filepath)
         except ConfigError:
             sys.exit(1)
 
@@ -320,7 +311,7 @@ class Maze:
             print("Seed is only valid in INT format. Generating random maze.")
             seed = None
         try:
-            maze = Maze(width, height, entry, exit, output_file, seed)
+            maze = MazeGenerator(width, height, entry, exit, output_file, seed)
         except (ValueError, KeyError) as e:
             print(e)
             sys.exit(1)
@@ -331,9 +322,9 @@ class Maze:
             maze.make_imperfect()
             # It breaks approximately 7% of internal walls
 
-        # We write to the output
-        maze.write_output_file()
-
+        # We solve the maze
         best_path = maze.solve()
-        maze.append_solution_path(best_path)
+
+        # We write to the output
+        maze.write_output_file_mod(best_path)
         return maze

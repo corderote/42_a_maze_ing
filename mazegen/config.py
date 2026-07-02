@@ -1,15 +1,6 @@
 #!/usr/bin/python3
 from typing import Any
-
-
-CONFIG_FIELDS = {
-    "WIDTH":        int,
-    "HEIGHT":       int,
-    "ENTRY":        tuple,
-    "EXIT":         tuple,
-    "OUTPUT_FILE":  str,
-    "PERFECT":      bool
-}
+from mazegen.constants import CONFIG_FIELDS
 
 
 class ConfigError(Exception):
@@ -18,34 +9,36 @@ class ConfigError(Exception):
 
 
 def validate_config(config: dict[str, Any]) -> bool:
+    # Validate number of FIELDS
+    if len(config) < len(CONFIG_FIELDS):
+        raise ConfigError("Not enough fields defined in configuration file.")
+    # Validate the MANDATORY FIELDS:
     for key, _ in CONFIG_FIELDS.items():
         if key not in config.keys():
             raise ConfigError(f"{key} not found in config file.")
-    if len(config) < len(CONFIG_FIELDS):
-        raise ConfigError("Not enough fields defined in configuration file.")
-    elif config["WIDTH"] < 2:
-        raise ConfigError(f"Invalid 'WIDTH' field {config['WIDTH']}")
-    elif config["HEIGHT"] < 2:
-        raise ConfigError(f"Invalid 'HEIGHT' field {config['HEIGHT']}")
+    # Validate WIDTH
+    if config["WIDTH"] < 2 or config["WIDTH"] > 50:
+        raise ConfigError(f"Invalid 'WIDTH' value: {config['WIDTH']}")
+    # Validate HEIGHT
+    if config["HEIGHT"] < 2 or config["HEIGHT"] > 50:
+        raise ConfigError(f"Invalid 'HEIGHT' value: {config['HEIGHT']}")
+    # Validate Entry and Exit
+    if config["ENTRY"] == config["EXIT"]:
+        raise ConfigError(f"'ENTRY' and 'EXIT' fields can not be equal:"
+                          f"'{config['EXIT']}'")
     elif (config["ENTRY"][0] < 0 or config["ENTRY"][0] > config["WIDTH"] - 1 or
-            config["ENTRY"][1] < 0 or config["ENTRY"][1] > config["HEIGHT"] - 1):
+          config["ENTRY"][1] < 0 or config["ENTRY"][1] > config["HEIGHT"] - 1):
         raise ConfigError(f"Invalid 'ENTRY' field {config['ENTRY']}")
     elif (config["EXIT"][0] < 0 or config["EXIT"][0] > config["WIDTH"] - 1 or
-            config["EXIT"][1] < 0 or config["EXIT"][1] > config["HEIGHT"] - 1):
+          config["EXIT"][1] < 0 or config["EXIT"][1] > config["HEIGHT"] - 1):
         raise ConfigError(f"Invalid 'EXIT' field {config['EXIT']}")
-    elif config["ENTRY"] == config["EXIT"]:
-        raise ConfigError(f"'ENTRY' and 'EXIT' fields can not be equal "
-                          f"'{config['EXIT']}'")
-    else:
-        return True
+    return True
 
 
 def format_config(line: str) -> list[Any]:
     # Validate line:
-    if line == '':
-        return
     lst: list[Any] = line.strip('\n').split('=')
-    if len(lst) != 2 and line[0] != '#':
+    if len(lst) != 2:
         raise ConfigError(f"Invalid line format '{line}'.\n"
                           "The configuration file must contain "
                           "one 'KEY'='VALUE' pair per line.")
@@ -66,12 +59,12 @@ def format_config(line: str) -> list[Any]:
     return lst
 
 
-def get_config() -> dict[str, Any]:
+def get_config(filepath: str) -> dict[str, Any]:
     content: dict[str, Any] = {}
-    with open("config.txt", mode="rt", encoding="utf-8") as file:
+    with open(filepath, mode="rt", encoding="utf-8") as file:
         file_c = file.read().split('\n')
         for line in file_c:
-            if line != '':
+            if line != '' and line[0] != '#':
                 value = format_config(line)
                 content[value[0]] = value[1]
     validate_config(content)
@@ -80,7 +73,8 @@ def get_config() -> dict[str, Any]:
 
 if __name__ == "__main__":
     try:
-        config_content = get_config()
+        filepath = './mazegen/Resources/Config/default_config.txt'
+        config_content = get_config(filepath)
         print(config_content)
     except (ConfigError) as msg:
         print(msg)

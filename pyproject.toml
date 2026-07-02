@@ -1,0 +1,19 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "mazegen"
+version = "1.0.0"
+description = "42 A_maze_ing Maze Generator."
+requires-python = ">=3.10"
+license = "MIT"
+authors = [
+    { name = "nlicot-d", mail="nlicot-d@student.42madrid.com" },
+    { name = "pcordero", mail="pcordero@student.42madrid.com" },
+]
+readme = "README.md"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["mazegen*"]
