@@ -4,11 +4,48 @@ from mazegen.maze import Maze
 
 
 class MLX_Maze():
+    """
+    Manages the graphical layout parsing and drawing of a labyrinth structure.
+
+    This coordinator tracks configuration files, handles runtime maze
+    regenerations, manages active tile texture arrays, and maps logical
+    abstract maze coordinates onto explicit 2D screen positions for rendering
+    walls, paths, solution tracks, start anchors, and exit points.
+
+    Attributes:
+        _config_filepath (str): Class-level variable tracking the system file
+            path to the labyrinth configuration schema.
+        _pos (tuple[int, int]): Class-level offset coordinate pairing (X, Y)
+            for positioning the printed maze canvas.
+        _m (Any): Instance reference to the core MiniLibX graphics controller
+            layer.
+        _p (Any): Pointer connection address representing the initialized
+            MiniLibX context.
+        _w (Any): Pointer identifier targeting the active application display
+            window.
+        _maze (Maze): Core back-end data structure holding dimensions, cells,
+            and paths.
+        _img_lst (list[Any]): Collection of loaded graphical textures map
+            records.
+    """
     _config_filepath = ''
     _pos: tuple[int, int] = (0, 0)
 
     def __init__(self, m: Mlx, ptr: Any, window: Any,
                  maze: Maze, img_lst: list[str]) -> None:
+        """
+        Initializes the graphical maze rendering pipeline with runtime window
+        contexts.
+
+        Args:
+            m (Mlx): Base graphics engine framework wrapper instance.
+            ptr (Any): MiniLibX connection tracking identifier.
+            window (Any): Destination window wrapper reference address.
+            maze (Maze): Logical multi-dimensional layout puzzle object
+                instance.
+            img_lst (list[str]): Initialized image descriptor pointer
+                structures sequence.
+        """
         self._m: Any = m
         self._p: Any = ptr
         self._w: Any = window
@@ -16,23 +53,72 @@ class MLX_Maze():
         self._img_lst = img_lst
 
     def gen_new_maze(self) -> None:
+        """
+        Triggers a puzzle data rebuild cycle utilizing the active
+        configuration resource path.
+        """
         if self._config_filepath != '':
             self._maze = Maze.generate_maze_output(self._config_filepath)
 
     def set_img_list(self, new_list: list[Any]) -> None:
+        """
+        Swaps the current reference tile image collection sequence out for an
+        alternate set.
+
+        Args:
+            new_list (list[Any]): Sequence containing the new set of texture
+                structures.
+        """
         self._img_lst = new_list
 
     def set_config_filepath(self, new_filepath: str) -> None:
+        """
+        Registers an updated structural blueprint file layout target directory
+        path.
+
+        Args:
+            new_filepath (str): Target physical text source resource location
+                string.
+        """
         self._config_filepath = new_filepath
 
     def set_maze_pos(self, new_pos: tuple[int, int]) -> None:
+        """
+        Adjusts the rendering margin offset coordinate positioning for
+        structural grids.
+
+        Args:
+            new_pos (tuple[int, int]): Coordinate pixel location layout pair
+                (X, Y).
+        """
         self._pos = new_pos
 
     def get_maze_pos(self) -> tuple[int, int]:
+        """
+        Retrieves the layout offset location value where drawing routines
+        place elements.
+
+        Returns:
+            tuple[int, int]: Screen positioning coordinate index data (X, Y).
+        """
         return self._pos
 
     def _print_fixed(self, pos: tuple[int, int],
                      c_pos: tuple[int, int]) -> None:
+        """
+        Paints an immutable localized obstacle block configuration around
+        static coordinates.
+
+        Calculates localized sub-tile coordinate alignments matching grid
+        block points, and updates a 3x3 fragment area with lock textures to
+        denote structural anchors.
+
+        Args:
+            pos (tuple[int, int]): Root base canvas positioning offset
+                coordinates.
+            c_pos (tuple[int, int]): Logical grid indexing column and row map
+                point.
+        """
         img = self._img_lst[2]
         x = pos[0] + ((2*c_pos[0] + 1) * int(img[1]))
         y = pos[1] + ((2*c_pos[1] + 1) * int(img[2]))
@@ -42,6 +128,21 @@ class MLX_Maze():
                                                 img[0], fx, fy)
 
     def mlx_print_maze(self, pos: tuple[int, int] = (0, 0)) -> None:
+        """
+        Deconstructs and parses abstract matrix items into concrete pixel tile
+        map rows.
+
+        Iterates sequentially across the vertical rows of the back-end
+        labyrinth object.
+        For each row index, it builds three separate sub-tile graphical bands
+        (Top edge, Middle section, and Bottom edge) out of wall and path
+        textures. After painting the standard geometry, it superimposes
+        immutable block overlays over fixed cells.
+
+        Args:
+            pos (tuple[int, int]): Initial drawing anchor pixel offset.
+                Defaults to (0, 0).
+        """
         wall = self._img_lst[0]
         path = self._img_lst[1]
         for row in range(self._maze.get_height()):
@@ -110,6 +211,21 @@ class MLX_Maze():
 
     def mlx_print_path(self, pos: tuple[int, int] = (0, 0),
                        print_path: bool = True) -> None:
+        """
+        Draws navigation points, connecting route tracks, entry points, and
+        targets.
+
+        Projects the navigation route across screen coordinates when active.
+        It loops through ordered navigation steps, calculates the path vector
+        intersections to avoid visual breaking, and marks terminal anchors
+        by overlaying individual Start and Exit indicators.
+
+        Args:
+            pos (tuple[int, int]): Canvas location layout placement offset.
+                Defaults to (0, 0).
+            print_path (bool): Visibility controller flag toggling path
+                overlays. Defaults to True.
+        """
         s_img = self._img_lst[3]
         e_img = self._img_lst[4]
         p_img = self._img_lst[5]

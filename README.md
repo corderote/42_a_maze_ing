@@ -21,7 +21,6 @@
 - Finds the shortest path with BFS, including in imperfect mazes where several routes can exist.
 - Displays the maze in the terminal with visible entry (`S`), exit (`E`), walls, optional path, and the "42" pattern.
 
-``REVISAR``
 - Provides a reusable `mazegen` Python package buildable with `make build`.
 
 #### Mandatory user interactive controls
@@ -68,8 +67,7 @@ PERFECT=True
 ---
 
 ## Instructions
-``REVISAR``
-``CAMBIA COSAS DESDE AQUI PCORDERO``
+
 ### Requirements
 
 - Python 3.10 or later
@@ -96,6 +94,7 @@ python3 a_maze_ing.py config.txt
 ```
 
 Where `config.txt` is your configuration file (see format below).
+This file will be generated if needed by the 'make run' command.
 
 ### Other Makefile targets
 
@@ -117,12 +116,6 @@ This generates a `.whl` file at the project root, installable via:
 ```bash
 pip install mazegen-*.whl
 ```
-
----
-
-``HASTA AQUÍ PCORDERO``
-
----
 
 ## Maze generation algorithm
 
@@ -146,14 +139,23 @@ The result is always a **perfect maze** (a spanning tree): exactly one path exis
 
 For `PERFECT=False`, after the selected perfect algorithm we remove a random subset of internal walls (avoiding the 42 pattern and ensuring no 3×3 open areas are created), introducing cycles and multiple valid paths.
 
-### Terminal interactions
+### MLX Interactions
 
-``Explain HERE PCORDERO``
+The MLX window will display at least 4 Buttons for the user. Each one of them works as follows: 
 
----
+**[NEW]** > Generates a new Maze.
+
+**[PATH]** > Displays or hides the shortest path between START and EXIT in the maze.
+
+**[COLOR]** > Changes the image list used to display the maze in the Mlx.  
+
+**[EXIT]** > Closes the window and releases the Mlx.
+
+
+
 
 ## Reusable module
-``AQUI ES TODO UN EJEMPLO PORQUE NO LO TENEMOS HECHO``
+
 The `mazegen` package exposes the maze generation logic as a standalone, importable library with no dependency on the main program.
 
 ### Installation
@@ -165,27 +167,18 @@ pip install mazegen-*.whl
 ### Basic usage
 
 ```python
-from mazegen import MazeGenerator, MazeConfig
+import sys
+from mazegen import mazegen_main
 
-config = MazeConfig(
-    width=20,
-    height=15,
-    entry=(0, 0),
-    exit=(19, 14),
-    output_file="maze.txt",
-    perfect=True,
-    seed=42,
-    algorithm="DFS",
-)
 
-generator = MazeGenerator(config)
-generator.generate()
-
-# Access the maze grid (list of lists of Cell objects)
-maze = generator.maze
-
-# Access the 42 pattern cell positions
-pattern = generator.pattern_42
+if __name__ == "__main__":
+    if len(sys.argv) != 2:
+        print("Usage: python3 a_maze_ing.py config.txt")
+        sys.exit(0)
+    try:
+        mazegen_main(sys.argv[1])
+    except (OSError, ValueError) as error:
+        print(f"Error: {error}")
 ```
 
 ### Passing custom parameters
@@ -214,7 +207,7 @@ config = MazeConfig(
     algorithm="DFS",
 )
 
-generator = MazeGenerator(config)
+generator = Maze(config)
 generator.generate()
 
 path = find_shortest_path(generator.maze, config.entry, config.exit)
@@ -250,49 +243,26 @@ AI tools, including Claude, Gemini and ChatGPT, were used during this project fo
 
 All AI-generated suggestions were reviewed, tested, adapted, and understood before being included in the project.
 
----
-``REVISAR``
-``Notas del subject que hay que tener, ELIMINAR:``
-The complete structure and format of your config file.
-• The maze generation algorithm you chose.
-• Why you chose this algorithm.
-• What part of your code is reusable, and how.
-• Your team and project management with:
-◦ The roles of each team member.
-14
-A-Maze-ing This is the way
-◦ Your anticipated planning and how it evolved until the end
-◦ What worked well and what could be improved
-◦ Have you used any specific tools? Which ones?
-``HASTA AQUI``
 
 ## Team and project management
 
 ### Roles
-- **pcordero**: configuration parsing, terminal rendering, , interactive CLI, packaging and Makefile.
+- **pcordero**: configuration parsing, Mlx rendering, , interactive window, packaging and Makefile.
 - **nlicot-d**: maze generation algorithm (DFS, imperfect mode, 42 pattern), pathfinding (BFS), output file format.
 
 
 ### Planning
-``REVISAR``
-Our initial plan was to split the project into two parallel tracks: core generation logic and visual/output layer. This worked well in practice — the `Cell` and `MazeConfig` data structures served as a clear contract between both parts.
+Our initial plan was to split the project into two parallel tracks: maze generation and rendering were chosen as the main blocks of the project.
 
-The main adjustment during development was adding the 3×3 open area constraint for imperfect mazes, which was not anticipated in the initial plan and required revisiting the generation logic.
+On one side this made really easy for us to work independently on different branches, without disturbing our partners work. 
 
 ### What worked well
 
 - The DFS algorithm was easy to reason about and debug visually.
-- ``REVISAR Y RELLENAR``
+- The CONFIG limitations and verifications made really easy towork on the deeper levels of te project without worrying about wrong doings with the needed values.
 
 ### What could be improved
-``REVISAR``
+
 - The imperfect mode could offer more control over the density of added cycles.
-- Additional bonus algorithms could be added in their own files following the same structure as `bonus_prim.py`.
-
-### Tools used
-
-- Python 3.10+
-- `mypy` for static type checking
-- `flake8` for code style
-- `build` for packaging ???? ``REVISAR``
-- Claude, Gemini and ChatGPT for code review and debugging assistance
+- Additional bonus algorithms could be added.
+- The way the events are handled with the Mlx, as right now they are a bit lacking on our side.

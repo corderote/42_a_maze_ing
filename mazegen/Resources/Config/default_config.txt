@@ -11,6 +11,6 @@ EXIT=25,7
 # OUTPUT_FILE: Expected type str
 OUTPUT_FILE=maze.txt
 # PERFECT: Expected type bool
-PERFECT=True
+PERFECT=False
 # SEED: Optional value, expected type str
 # SEED=42
